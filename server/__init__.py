@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from configs import global_settings
-from server import routers
+from server import routers, models
 
 app = FastAPI()
 
@@ -24,3 +24,7 @@ app.add_middleware(
 for router_mod in routers.__all__:
     router = importlib.import_module(f".routers.{router_mod}", package=__name__)
     app.include_router(router.router)
+
+
+for model_mod in models.__all__:
+    model = importlib.import_module(f".models.{model_mod}", package=__name__)
