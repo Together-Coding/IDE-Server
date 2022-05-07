@@ -10,20 +10,24 @@ from fastapi_cache.decorator import cache
 
 from configs import settings
 from server import models, routers
+from server.websocket.websocket import create_websocket
+
+
+if settings.DEBUG:
+    cors_allow_origins = "*"
+else:
+    cors_allow_origins = ["https://together-coding.com"]
+
 
 app = FastAPI()
-
-origins = ["https://together-coding.com"]
-if settings.DEBUG:
-    origins.extend(
-        [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ]
-    )
+sio, sio_app = create_websocket(app, cors_allow_origins)
 
 app.add_middleware(
-    CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["Authorization"]
+    CORSMiddleware,
+    allow_origins=cors_allow_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["Authorization"],
 )
 
 for router_mod in routers.__all__:
