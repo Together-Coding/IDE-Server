@@ -11,6 +11,10 @@
 1. `$ pip install -r requirements.txt`
 
 # Development
+- SSH tunneling for AWS Elasticache(Redis)
+    `$ ssh -i <ssh_pem_key> <EC2_user>@<EC2_IP_address> -f -N -L 6379:<Redis_endpoint:6379`
+- Connect to Redis
+    `$ redis-cli`
 - Start server
     1. `$ export $(cat .env | grep -v "#" | xargs)`
     1. `$ DEBUG=true uvicorn app:app --port 8001 --reload`

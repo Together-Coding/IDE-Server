@@ -4,16 +4,12 @@ from typing import Union
 from pydantic import BaseSettings
 
 
-class GlobalSettings(BaseSettings):
-    DEBUG: bool = False
-
-
-global_settings = GlobalSettings()
-
-
 class Settings(BaseSettings):
+    DEBUG: bool = False
     SQLALCHEMY_DATABASE_URL: str = ""
-    pass
+
+    REDIS_URL: str = ""
+    REDIS_DB: int = 0
 
 
 settings = Settings()
