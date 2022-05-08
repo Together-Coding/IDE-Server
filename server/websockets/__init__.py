@@ -3,6 +3,12 @@ from fastapi import FastAPI
 
 from configs import settings
 
+__all__ = [
+    "main",
+    "user",
+    "project",
+]
+
 
 def create_websocket(app: FastAPI, cors_allowed_origins: list | str):
     message_queue = socketio.AsyncRedisManager(
@@ -13,7 +19,7 @@ def create_websocket(app: FastAPI, cors_allowed_origins: list | str):
         cors_allowed_origins=cors_allowed_origins,
         async_mode="asgi",
         client_manager=message_queue,
-        # logger=True,
-        # engineio_logger=True,
+        logger=settings.DEBUG,
+        engineio_logger=settings.DEBUG,
     )
     return sio, socketio.ASGIApp(sio, app)
