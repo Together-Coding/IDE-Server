@@ -1,6 +1,3 @@
-import os
-from typing import Union
-
 from pydantic import BaseSettings
 
 

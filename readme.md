@@ -12,7 +12,7 @@
 
 # Development
 - SSH tunneling for AWS Elasticache(Redis)
-    `$ ssh -i <ssh_pem_key> <EC2_user>@<EC2_IP_address> -f -N -L 6379:<Redis_endpoint:6379`
+    `$ ssh -i <ssh_pem_key> <EC2_user>@<EC2_IP_address> -f -N -L 6379:<Redis_endpoint>:6379`
 - Connect to Redis
     `$ redis-cli`
 - Start server
