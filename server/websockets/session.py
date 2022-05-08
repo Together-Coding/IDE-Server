@@ -39,7 +39,7 @@ async def enter_room(sid: str, room_type: str, new_room: str, limit=None):
 
     # 기존에 접속한 room 을 가져온다.
     room_key = f"room-{room_type}"
-    rooms: list = get(sid, room_key) or []
+    rooms: list = await get(sid, room_key) or []
 
     # If already enterred, do nothing.
     if new_room in rooms:
@@ -51,13 +51,13 @@ async def enter_room(sid: str, room_type: str, new_room: str, limit=None):
         rooms_to_exit.extend(rooms[-limit:])
 
     for room in rooms_to_exit:
-        exit_room(sid, room_type, room)
+        await exit_room(sid, room_type, room)
 
     # Enter new room
     sio.enter_room(sid, new_room)
 
     rooms.append(new_room)
-    update(sid, {room_key: rooms})
+    await update(sid, {room_key: rooms})
 
 
 async def exit_room(sid: str, room_type: str, room: str):
@@ -65,7 +65,7 @@ async def exit_room(sid: str, room_type: str, room: str):
 
     # 기존에 접속한 room 을 가져온다.
     room_key = f"room-{room_type}"
-    rooms: list = get(sid, room_key) or []
+    rooms: list = await get(sid, room_key) or []
 
     # If not enterred, do nothing.
     if room not in rooms:
@@ -75,4 +75,4 @@ async def exit_room(sid: str, room_type: str, room: str):
     sio.leave_room(sid, room)
 
     rooms.remove(room)
-    update(sid, {room_key: rooms})
+    await update(sid, {room_key: rooms})
