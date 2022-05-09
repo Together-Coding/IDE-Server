@@ -8,7 +8,7 @@ from server.controllers.base import BaseContoller
 
 class AuthController(BaseContoller):
     @staticmethod
-    def verify_token(token: str) -> bool | dict:
+    def verify_token(token: str) -> tuple[bool, dict]:
         """Verify the given JWT token by asking to API server. Return True if verified, otherwise, False"""
         if not token:
             return False
@@ -16,11 +16,11 @@ class AuthController(BaseContoller):
         payload = {"token": token}
         resp = requests.post(API_URL + "/auth/token", json=payload, headers=API_HEADER)
 
-        if resp.ok:
-            try:
-                data = resp.json()
-                return data
-            except json.JSONDecodeError:
-                return False
-        else:
-            return False
+        success = False
+        try:
+            data = resp.json()
+            success = resp.ok and data.get('valid') is True
+        except json.JSONDecodeError:
+            data = {"data": "Unknown error"}
+
+        return success, data
