@@ -7,7 +7,7 @@ from server.websockets import session as ws_session
 
 @sio.event
 async def connect(sid, environ, auth):
-    """웹소켓 연결 요청을 수신하였을 떄, 토큰 인증을 통과하 경우에 연결한다."""
+    """웹소켓 연결 요청을 수신하였을 떄, 토큰 인증을 통과한 경우에 연결한다."""
 
     # Parse token from auth header
     token = ""

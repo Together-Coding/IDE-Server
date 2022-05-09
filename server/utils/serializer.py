@@ -16,8 +16,8 @@ def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -
     """
 
     return {
-        "id": part.id,
-        "userId": part.user_id,
+        "userId": part.id,  # Participant ID
+        "projectId": proj.id,
         "nickname": part.nickname,
         "role": part.role,
         "active": proj.active if proj else False,
