@@ -1,8 +1,5 @@
-from enum import Enum
-from re import L
 from sqlalchemy import (
     DATETIME,
-    TEXT,
     Boolean,
     Column,
     ForeignKey,
@@ -48,6 +45,16 @@ class Participant(Base):
     course = relationship("Course", back_populates="participants")
     user = relationship("User", back_populates="participation")
     project = relationship("UserProject")
+
+    KEY_TEACHER = "teacher"
+    KEY_STUDENT = "student"
+
+    @property
+    def is_teacher(self):
+        return self.role == self.KEY_TEACHER
+
+    def __repr__(self):
+        return f"{type(self).__name__} id={self.id} nickname={self.nickname} ({self.role})"
 
 
 class Lesson(Base):
@@ -104,3 +111,7 @@ class ProjectViewer(Base):
     project_id = Column(Integer, ForeignKey("user_projects.id"), nullable=False)
     viewer_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     permission = Column(Integer, nullable=False, default=PROJ_PERM.READ)
+
+    def __repr__(self):
+        return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
+

@@ -33,6 +33,9 @@ class LessonBaseController(CourseBaseController):
         self._participant = participant
         self._project = project
 
+        print(self.user_id, self.course_id, self.lesson_id)
+        print(self.my_participant, self.my_project)
+
     @property
     def my_participant(self) -> Participant:
         if not self._participant:
