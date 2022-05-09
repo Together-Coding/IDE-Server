@@ -3,9 +3,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from server.controllers.base import LessonBaseController
-from server.models.course import Participant, ProjectViewer, UserProject
+from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 from server.utils.time_utils import utc_dt_now
-from server.websockets import session as ws_session
+from server.websockets import project, session as ws_session
 
 
 class PingController(LessonBaseController):
@@ -105,6 +105,61 @@ class ProjectController(LessonBaseController):
             query = query.union(teacher_query)
 
         return query.all()
+
+    def modify_project_permission(self, user_id: int, permission: int) -> None | ProjectViewer:
+        """Create/Modify users's ProjectViewer record.
+
+        Args:
+            user_id (int): 권한을 수정할 상대 유저 ID
+            permission (int): READ: 4, WRITE: 2, EXEC: 1
+        """
+
+        permission = int(permission) & PROJ_PERM.ALL
+
+        row = (
+            self.db.query(ProjectViewer)
+            .filter(ProjectViewer.project_id == self.my_project.id)
+            .filter(ProjectViewer.viewer_id == user_id)
+            .first()
+        )
+
+        # 권한 변화가 없는 경우
+        if row and row.permission == permission:
+            return None
+
+        if not row:
+            row = ProjectViewer(project_id=self.my_project.id, viewer_id=user_id, permission=0)
+
+        # 권한 변경, 저장
+        diff_perm = row.permission ^ permission  # 1 on different bit
+        row.permission = permission
+        self.db.add(row)
+        self.db.commit()
+
+        # 변경된 권한을 계산
+        added = 0
+        removed = 0
+        # if READ flag is changed
+        if diff_perm & PROJ_PERM.READ:
+            # if the changed flag is in the current permission
+            if row.permission & PROJ_PERM.READ:
+                added += PROJ_PERM.READ
+            else:
+                removed += PROJ_PERM.READ
+        if diff_perm & PROJ_PERM.WRITE:
+            if row.permission & PROJ_PERM.WRITE:
+                added += PROJ_PERM.WRITE
+            else:
+                removed += PROJ_PERM.WRITE
+        if diff_perm & PROJ_PERM.EXEC:
+            if row.permission & PROJ_PERM.EXEC:
+                added += PROJ_PERM.EXEC
+            else:
+                removed += PROJ_PERM.EXEC
+
+        row.added = added
+        row.removed = removed
+        return row
 
 
 if __name__ == "__main__":

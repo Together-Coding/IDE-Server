@@ -1,5 +1,6 @@
 from typing import Any
 
+from constants.ws import Room
 from server import sio
 
 
@@ -32,6 +33,17 @@ async def clear(sid: str, exc: list[str] | None = None, namespaces: str = None) 
                 continue
             else:
                 del s[k]
+
+
+def enter_ptc_id_room(sid: str, ptc_id: int):
+    """Enter Participant.id specific room in order to retrieve users' sid from participation ids
+
+    Args:
+        sid (str): websocket session id
+        ptc_id (int): Participant.id
+    """
+
+    sio.enter_room(sid, Room.PERSONAL_PTC.format(ptc_id=ptc_id))
 
 
 async def enter_room(sid: str, room_type: str, new_room: str, limit=None):

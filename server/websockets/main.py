@@ -29,7 +29,8 @@ async def connect(sid, environ, auth):
         raise ConnectionRefusedError("Authorization failed. Not a valid token.")
 
     # 유저 ID 저장
-    await ws_session.update(sid, {"user_id": token_info["userId"]})
+    user_id = token_info["userId"]
+    await ws_session.update(sid, {"user_id": user_id})
 
 
 @sio.event

@@ -102,6 +102,7 @@ class PROJ_PERM:
     READ: int = 0b_0000_0100
     WRITE: int = 0b_0000_0010
     EXEC: int = 0b_0000_0001
+    ALL: int = 0b_0000_0111
 
 
 class ProjectViewer(Base):
@@ -112,6 +113,9 @@ class ProjectViewer(Base):
     viewer_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     permission = Column(Integer, nullable=False, default=PROJ_PERM.READ)
 
+    # Temporary values for the cases when the permission is changed.
+    added = 0
+    removed = 0
+
     def __repr__(self):
         return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
-
