@@ -9,6 +9,7 @@ from fastapi_cache.decorator import cache
 
 from configs import settings
 from server import models, routers, websockets
+from server.helpers.sentry import init_sentry
 from server.websockets import create_websocket
 
 if settings.DEBUG:
@@ -18,6 +19,7 @@ else:
 
 
 app = FastAPI()
+init_sentry(app)
 sio, sio_app = create_websocket(app, cors_allow_origins)
 
 app.add_middleware(
