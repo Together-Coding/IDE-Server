@@ -15,11 +15,7 @@ from server.websockets import session as ws_session
 async def ping(sid: str, data=None):
     """Listen ping to update UserProject.recent_activity_at"""
 
-    user_id: int = await ws_session.get(sid, "user_id")
-    course_id: int = await ws_session.get(sid, "course_id")
-    lesson_id: int = await ws_session.get(sid, "lesson_id")
-
-    ctrl = PingController(user_id=user_id, course_id=course_id, lesson_id=lesson_id, db=get_db())
+    ctrl = await PingController.from_session(sid, get_db())
     ctrl.update_recent_activity()
 
     await sio.emit(WSEvent.ACTIVITY_PING, "pong", to=sid)
