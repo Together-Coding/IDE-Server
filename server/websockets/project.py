@@ -1,9 +1,13 @@
 from constants.ws import Room, WSEvent
 from server import sio
-from server.controllers.project import PingController, ProjectController
+from server.controllers.project import (PingController, ProjectController,
+                                        ProjectFileController)
+from server.helpers import sentry
 from server.helpers.db import get_db
 from server.models.course import PROJ_PERM
 from server.utils import serializer
+from server.utils.exceptions import BaseException
+from server.utils.response import ws_error_response
 from server.websockets import session as ws_session
 
 
@@ -43,7 +47,7 @@ async def project_accessible(sid: str, data=None):
 @sio.on(WSEvent.PROJECT_PERM)
 async def modify_project_permission(sid: str, data=None):
     """나의 프로젝트에 대한 각 유저의 권한 변경
-    
+
     data: {
         userId: (int) target user's participant ID
         permission: (int) new RWX permission
@@ -75,3 +79,20 @@ async def modify_project_permission(sid: str, data=None):
         await sio.emit(WSEvent.PROJECT_PERM, noti, room=ptc_room)
 
     await sio.emit(WSEvent.PROJECT_PERM, {"success": True, "error": "Permission changed."}, to=sid)
+
+
+@sio.on(WSEvent.DIR_INFO)
+async def get_dir_info(sid: str, data: dict | None = None):
+    target_ptc_id = data.get("targetId")
+    if not target_ptc_id:
+        return await sio.emit(WSEvent.DIR_INFO, ws_error_response("'targetId' is required."), to=sid)
+
+    try:
+        proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
+        files = proj_file_ctrl.get_dir_info(target_ptc_id)
+        await sio.emit(WSEvent.DIR_INFO, {"file": files}, to=sid)
+    except BaseException as e:
+        return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)
+    except Exception as e:
+        sentry.exc()
+        return await sio.emit(WSEvent.DIR_INFO, ws_error_response("Unknown error occurred."), to=sid)

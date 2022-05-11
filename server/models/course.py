@@ -1,13 +1,5 @@
-from sqlalchemy import (
-    DATETIME,
-    Boolean,
-    Column,
-    ForeignKey,
-    Integer,
-    PrimaryKeyConstraint,
-    String,
-    UniqueConstraint,
-)
+from __future__ import annotations
+from sqlalchemy import DATETIME, Boolean, Column, ForeignKey, Integer, PrimaryKeyConstraint, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from server.helpers.db import Base
@@ -27,8 +19,8 @@ class Course(Base):
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     updated_at = Column(DATETIME, nullable=True, onupdate=utc_dt_now)
 
-    participants = relationship("Participant")
-    lessons = relationship("Lesson")
+    participants: list[Participant] = relationship("Participant")
+    lessons: list[Lesson] = relationship("Lesson")
 
 
 class Participant(Base):
@@ -42,9 +34,9 @@ class Participant(Base):
     nickname = Column(String(60), nullable=False, default="")
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    course = relationship("Course", back_populates="participants")
-    user = relationship("User", back_populates="participation")
-    project = relationship("UserProject")
+    course: Course = relationship("Course", back_populates="participants", uselist=False)
+    user = relationship("User", back_populates="participation", uselist=False)
+    project: UserProject = relationship("UserProject", uselist=False)
 
     KEY_TEACHER = "teacher"
     KEY_STUDENT = "student"
@@ -69,16 +61,16 @@ class Lesson(Base):
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    course = relationship("Course", back_populates="lessons")
-    file = relationship("LessonFile", uselist=False)
-    projects = relationship("UserProject")
+    course: Course = relationship("Course", back_populates="lessons", uselist=False)
+    file: LessonFile = relationship("LessonFile", uselist=False)
+    projects: list[UserProject] = relationship("UserProject")
 
 
 class LessonFile(Base):
     __tablename__ = "files"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    url = Column(String(2048), nullable=False)
+    url = Column(String(2048), nullable=False)  # S3 Object key
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
 
@@ -92,9 +84,9 @@ class UserProject(Base):
     active = Column(Boolean, nullable=False, default=0)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    lesson = relationship("Lesson", back_populates="projects")
-    participant = relationship("Participant", back_populates="project", uselist=False)
-    viewers = relationship("ProjectViewer")
+    lesson: Lesson = relationship("Lesson", back_populates="projects", uselist=False)
+    participant: Participant = relationship("Participant", back_populates="project", uselist=False)
+    viewers: list[ProjectViewer] = relationship("ProjectViewer")
     code_references = relationship("CodeReference")
 
 
@@ -119,3 +111,15 @@ class ProjectViewer(Base):
 
     def __repr__(self):
         return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
+
+    @property
+    def read_allowed(self):
+        return self.permission & PROJ_PERM.READ
+
+    @property
+    def write_allowed(self):
+        return self.permission & PROJ_PERM.WRITE
+
+    @property
+    def exec_allowed(self):
+        return self.permission & PROJ_PERM.EXEC

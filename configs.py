@@ -9,5 +9,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = ""
     REDIS_DB: int = 0
 
+    S3_BUCKET: str = ""
+
 
 settings = Settings()
