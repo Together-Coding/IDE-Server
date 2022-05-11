@@ -7,35 +7,6 @@ from server.utils import serializer
 from server.websockets import session as ws_session
 
 
-@sio.on(WSEvent.INIT_LESSON)
-async def init_lesson(sid: str, data=None):
-    """Initialize lesson websocket session"""
-
-    errs = []
-    course_id = data.get("courseId")
-    lesson_id = data.get("lessonId")
-
-    if not course_id:
-        errs.append("`courseId` is required.")
-    elif not lesson_id:
-        errs.append("`lessonId` is required.")
-
-    if errs:
-        return await sio.emit(WSEvent.INIT_LESSON, data={"success": False, "error": errs}, to=sid)
-
-    # 유저의 수업 정보 저장
-    await ws_session.update(sid, {"course_id": course_id, "lesson_id": lesson_id})
-
-    # 수업 room 에 추가
-    await ws_session.enter_room(sid, "lesson", Room.LESSON.format(course_id=course_id, lesson_id=lesson_id), 1)
-
-    # 개별 participant room 에 추가
-    proj_ctrl: ProjectController = await ProjectController.from_session(sid, get_db())
-    ws_session.enter_ptc_id_room(sid, proj_ctrl.my_participant.id)
-
-    await sio.emit(WSEvent.INIT_LESSON, data={"success": True}, to=sid)
-
-
 @sio.on(WSEvent.ACTIVITY_PING)
 async def ping(sid: str, data=None):
     """Listen ping to update UserProject.recent_activity_at"""

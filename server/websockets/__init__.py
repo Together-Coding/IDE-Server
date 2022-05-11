@@ -7,6 +7,7 @@ __all__ = [
     "main",
     "user",
     "project",
+    "course",
 ]
 
 
