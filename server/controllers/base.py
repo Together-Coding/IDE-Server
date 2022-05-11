@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
-from server.models.course import Participant, UserProject
+from server.models.course import Lesson, Participant, UserProject
+from server.websockets import session as ws_session
 
 
 class BaseContoller:
@@ -32,9 +33,24 @@ class LessonBaseController(CourseBaseController):
         self.lesson_id = lesson_id
         self._participant = participant
         self._project = project
+        self._lesson = None
 
-        print(self.user_id, self.course_id, self.lesson_id)
-        print(self.my_participant, self.my_project)
+    @classmethod
+    async def from_session(cls, sid: str, db: Session):
+        """Create ProjectController from websocket session data
+
+        Args:
+            sid (str): socketio session
+            db (Session): database session
+
+        Returns:
+            ProjectController:
+        """
+        user_id: int = await ws_session.get(sid, "user_id")
+        course_id: int = await ws_session.get(sid, "course_id")
+        lesson_id: int = await ws_session.get(sid, "lesson_id")
+
+        return cls(user_id=user_id, course_id=course_id, lesson_id=lesson_id, db=db)
 
     @property
     def my_participant(self) -> Participant:
@@ -51,7 +67,7 @@ class LessonBaseController(CourseBaseController):
     @property
     def my_project(self) -> UserProject:
         """Return participant's UserProject"""
-        
+
         if not self.my_participant:
             return
 
@@ -64,3 +80,15 @@ class LessonBaseController(CourseBaseController):
             )
 
         return self._project
+
+    @property
+    def my_lesson(self) -> Lesson:
+        """Return Lesson from self.lesson_id"""
+
+        if not self.lesson_id:
+            return
+
+        if not self._lesson:
+            self._lesson = self.db.query(Lesson).filter(Lesson.id == self.lesson_id).first()
+
+        return self._lesson

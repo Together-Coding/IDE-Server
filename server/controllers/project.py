@@ -19,23 +19,6 @@ class PingController(LessonBaseController):
 
 
 class ProjectController(LessonBaseController):
-    @classmethod
-    async def from_session(cls, sid: str, db: Session) -> ProjectController:
-        """Create ProjectController from websocket session data
-
-        Args:
-            sid (str): socketio session
-            db (Session): database session
-
-        Returns:
-            ProjectController:
-        """
-        user_id: int = await ws_session.get(sid, "user_id")
-        course_id: int = await ws_session.get(sid, "course_id")
-        lesson_id: int = await ws_session.get(sid, "lesson_id")
-
-        return ProjectController(user_id=user_id, course_id=course_id, lesson_id=lesson_id, db=db)
-
     def accessible_to(self) -> list[tuple[Participant, UserProject, ProjectViewer]]:
         """Return user's accessible project owner list."""
 
