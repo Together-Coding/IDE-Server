@@ -1,6 +1,6 @@
 from constants.ws import Room, WSEvent
 from server import sio
-from server.controllers.project import PingController, ProjectController
+from server.controllers.project import ProjectController
 from server.helpers.db import get_db
 from server.websockets import session as ws_session
 
