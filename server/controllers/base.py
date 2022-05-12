@@ -1,39 +1,49 @@
 from sqlalchemy.orm import Session
 
+from server.controllers.file import RedisController, S3Controller
 from server.models.course import Lesson, Participant, UserProject
 from server.websockets import session as ws_session
 
 
 class BaseContoller:
-    def __init__(self, db: Session | None = None):
+    def __init__(self, db: Session | None = None, *args, **kwargs):
         self.db = db
 
 
 class CourseBaseController(BaseContoller):
-    def __init__(self, user_id: int, course_id: int, *args, **kwargs):
+    def __init__(self, course_id: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.user_id = user_id
         self.course_id = course_id
 
 
 class LessonBaseController(CourseBaseController):
+    def __init__(self, lesson_id: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.lesson_id = lesson_id
+
+        self.redis_ctrl = RedisController(self.course_id, self.lesson_id)
+        self.s3_ctrl = S3Controller(self.course_id, self.lesson_id, self.redis_ctrl.redis_key)
+
+
+class LessonUserController(LessonBaseController):
     def __init__(
         self,
         user_id: int,
-        course_id: int,
-        lesson_id: int,
         participant: Participant | None = None,
         project: UserProject | None = None,
+        lesson: Lesson | None = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
-        super().__init__(user_id, course_id, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        self.lesson_id = lesson_id
+        self.user_id = user_id
+
         self._participant = participant
         self._project = project
-        self._lesson = None
+        self._lesson = lesson
 
     @classmethod
     async def from_session(cls, sid: str, db: Session):

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
-from constants.redis import SIZE_LIMIT, RedisKey
+from constants.redis import SIZE_LIMIT
 from constants.s3 import S3Key
-from server.controllers.base import LessonBaseController
-from server.controllers.file import RedisControllerMixin, S3ControllerMixin
+from server.controllers.base import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.etc import get_hashed, text_encode, text_decode_list
+from server.utils.etc import get_hashed, text_encode
 from server.utils.exceptions import (
     ForbiddenProjectException,
     ParticipantNotFoundException,
@@ -18,11 +17,9 @@ from server.utils.exceptions import (
     ProjectNotFoundException,
 )
 from server.utils.time_utils import utc_dt_now
-from server.websockets import project
-from server.websockets import session as ws_session
 
 
-class PingController(LessonBaseController):
+class PingController(LessonUserController):
     def update_recent_activity(self):
         if not self.my_project:
             return
@@ -32,7 +29,7 @@ class PingController(LessonBaseController):
         self.db.commit()
 
 
-class ProjectController(LessonBaseController):
+class ProjectController(LessonUserController):
     def create_if_not_exists(self) -> UserProject:
         """Create user's ``UserProject`` if not exists"""
         if not self.my_project:
@@ -168,19 +165,11 @@ class ProjectController(LessonBaseController):
         return row
 
 
-class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisControllerMixin):
+class ProjectFileController(LessonUserController):
     def _get_project_cached(self, target_ptc: Participant):
         """Return user's cached project files from Redis"""
 
-        redis_key = RedisKey(self.course_id, self.lesson_id)
-
-        return self.get_cached_files(
-            r_list_key=redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id),
-            r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(
-                ptc_id=target_ptc.id, hash=hash
-            ),
-            check_content=True,
-        )
+        return self.redis_ctrl.get_file_list(ptc_id=target_ptc.id, check_content=True)
 
     def _check_permission(
         self, check_perm: PROJ_PERM, viewer: Participant, target_ptc: Participant, target_proj: UserProject
@@ -262,20 +251,22 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
         target_ptc, target_proj = self.get_target_info(target_ptc_id, PROJ_PERM.READ)
         self_request = target_ptc.id == self.my_participant.id
 
-        redis_key = RedisKey(self.course_id, self.lesson_id)
-        s3_key = S3Key(self.course_id, self.lesson_id)
-
         # UserProject 생성이 안 된 경우
         if not target_proj:
             # 자기 자신에 대한 요청인 경우, 생성
             if self_request:
                 proj_ctrl = ProjectController(
-                    self.user_id, self.course_id, self.lesson_id, target_ptc, target_proj, db=self.db
+                    user_id=self.user_id,
+                    course_id=self.course_id,
+                    lesson_id=self.lesson_id,
+                    participant=target_ptc,
+                    project=target_proj,
+                    db=self.db,
                 )
-                proj_ctrl.create_if_not_exists()
+                target_proj = proj_ctrl.create_if_not_exists()
 
                 # 수업 템플릿 코드 적용
-                tmpl_ctrl = LessonTemplateController(self.db)
+                tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
                 tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
             else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
                 raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
@@ -287,19 +278,11 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
                 return project_files
 
             # 캐시 되어있지 않다면, S3 에서 유저의 프로젝트 다운로드
-            r_list_key = redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id)
-            r_size_key = redis_key.KEY_USER_CUR_SIZE.format(ptc_id=target_ptc.id)
-
-            self.extract_to_redis(
-                object_key=s3_key.KEY_USER_PROJECT.format(ptc_id=target_ptc.id),
-                r_list_key=r_list_key,
-                r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=hash),
-                s3_bulk_file_key=s3_key.KEY_BULK_FILE,
-            )
-            self.set_total_file_size(r_list_key, r_size_key=r_size_key)
+            self.s3_ctrl.extract_to_redis(ptc_id=target_ptc.id)
+            self.redis_ctrl.set_total_file_size(target_ptc.id)
 
         # 대상 프로젝트를 읽을 수 있다면, 저장소에서 가져온다.
-        return r.zrange(redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id), 0, -1)
+        return self.redis_ctrl.get_file_list(ptc_id=target_ptc.id, check_content=True)
 
     def get_file_content(self, owner_id: int, filename: str):
         """Return file content from Redis.
@@ -310,12 +293,11 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
             filename (str): filename to read
         """
 
+        enc_filename = text_encode(filename)
         target_ptc, target_proj = self.get_target_info(owner_id, PROJ_PERM.READ)
 
         # File list 에 존재하는지 확인
-        redis_key = RedisKey(self.course_id, self.lesson_id)
-        _r_list_key = redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id)
-        size = r.zscore(_r_list_key, filename)
+        size = self.redis_ctrl.get_file_size_score(enc_filename, ptc_id=target_ptc.id, encoded=True)
 
         # Redis 에 없는 경우
         if size is None:
@@ -327,24 +309,18 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
 
             # 있다면 압축을 풀고 Redis 에 저장. 해당 UserProject 가 active 상태라면 TTL=0,
             # inactive 상태라면 TTL=3600 을 설정하여, Redis 메모리를 불필요하게 차지하지 않도록 한다.
-            _r_file_key_func = lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=hash)
-            _r_size_key = redis_key.KEY_USER_CUR_SIZE.format(ptc_id=target_ptc.id)
-            _s3_bulk_file_key = s3_key.KEY_BULK_FILE
-            _ttl = None if target_proj.active else 3600
-            self.extract_to_redis(
-                _user_project_key, _r_list_key, _r_file_key_func, _s3_bulk_file_key, _r_size_key, _ttl, overwrite=False
-            )
+            ttl = None if target_proj.active else 3600
+            self.s3_ctrl.extract_to_redis(ptc_id=target_ptc.id, ttl=ttl, overwrite=False)
 
             # 사이즈 다시 확인
-            size = r.zscore(_r_list_key, filename)
+            size = self.redis_ctrl.get_file_size_score(enc_filename, ptc_id=target_ptc.id, encoded=True)
 
         # Redis 에서 반환
-        _r_file_key = redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=get_hashed(filename))
         if size is None or size < 0:
             raise ProjectFileException("파일이 존재하지 않습니다.")
         elif 0 <= size < SIZE_LIMIT:  # 적당한 크기
-            return r.get(_r_file_key)
+            return self.redis_ctrl.get_file(filename=enc_filename, ptc_id=target_ptc.id, hashed=False)
         elif SIZE_LIMIT < size:  # Redis 임의 제한 초과
             # AWS S3 에서 bulk file 다운로드, 반환
-            s3_object_key = r.get(_r_file_key)
-            return self.get_s3_object_content(s3_object_key).decode()
+            s3_object_key = self.redis_ctrl.get_file(filename=enc_filename, ptc_id=target_ptc.id, hashed=False)
+            return self.s3_ctrl.get_s3_object_content(s3_object_key).decode()

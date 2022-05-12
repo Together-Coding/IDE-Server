@@ -5,65 +5,232 @@ from typing import Callable
 
 from botocore.errorfactory import ClientError
 
-from constants.redis import SIZE_LIMIT
+from constants.redis import SIZE_LIMIT, RedisKey
+from constants.s3 import S3Key
 from server.helpers import s3, sentry
 from server.helpers.redis_ import r
-from server.utils.etc import get_hashed
+from server.utils.etc import get_hashed, text_encode
 from server.utils.exceptions import ProjectFileException
 
 
-class RedisControllerMixin:
-    @staticmethod
-    def set_total_file_size(r_list_key: str, r_size_key: str):
-        """Set total size bytes to ``r_size_key`` in Redis.
-        Total size equals to the sum of the scores of ``r_list_key`` items.
+class RedisController:
+    def __init__(
+        self,
+        course_id: int,
+        lesson_id: int,
+    ):
+        self.redis_key = None
+
+        self.update_base_key(course_id, lesson_id)
+
+    def update_base_key(
+        self,
+        course_id: int,
+        lesson_id: int,
+    ):
+        self.redis_key = RedisKey(course_id, lesson_id)
+
+    def store_file(
+        self,
+        filename: str,
+        content: str | int,
+        ptc_id: int | None = None,
+        hashed=False,
+    ):
+        """Store file content into Redis
 
         Args:
-            r_list_key (str): file list key
-            r_size_key (str): total size key
+            filename (str): filename to store as key
+            content (str | int): content to store as value
+            ptc_id (int | None, optional): owner participant's ID. Defaults to None.
+            hashed (bool, optional): whether the filename is hashed or encoded. Defaults to False.
+        """
+
+        if not hashed:
+            filename = get_hashed(filename)
+
+        if ptc_id:
+            file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        else:
+            file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
+
+        r.set(file_key, content)
+
+    def get_file(
+        self,
+        filename: str,
+        ptc_id: int | None = None,
+        hashed=False,
+    ) -> str:
+        """Return file content from Redis.
+
+        Args:
+            filename (str): filename to read
+            ptc_id (int | None, optional): owner participant ID. Defaults to None.
+            hashed (bool, optional): whether the filename is hashed or encoded. Defaults to False.
+        """
+
+        if not hashed:
+            filename = get_hashed(filename)
+
+        if ptc_id:
+            file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        else:
+            file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
+
+        return r.get(file_key)
+
+    def get_file_size_len(
+        self,
+        filename: str,
+        ptc_id: int | None = None,
+        hashed=False,
+    ) -> int:
+        """Return strlen of the filename.
+        Unlike ``get_file_size_score``, this uses `Redis.strlen` method.
+
+        Args:
+            filename (str): target filename
+            ptc_id (int | None, optional): owner's participant ID. Defaults to None.
+            hashed (bool, optional): whether filename is encoded or hashed + encoded. Defaults to False.
+        """
+
+        if not hashed:
+            filename = get_hashed(filename)
+
+        if ptc_id:
+            file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        else:
+            file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
+
+        return r.strlen(file_key) or 0
+
+    def get_file_size_score(
+        self,
+        filename: str,
+        ptc_id: int | None = None,
+        encoded=False,
+    ) -> int | float:
+        """Return score of ``list_key:filename``.
+
+        Args:
+            filename (str): target filename
+            ptc_id (int | None, Optional): owner's participant ID. Defaults to None
+            encoded (bool, optional): whether filename is encoded or plaintext. Defaults to False.
+        """
+
+        if ptc_id:
+            list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+        else:
+            list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
+
+        # If filename is raw plain text, encode it
+        if not encoded:
+            filename = text_encode(filename)
+
+        return r.zscore(list_key, filename)
+
+    def increase_total_file_size(
+        self,
+        amount: int,
+        ptc_id: int,
+    ) -> int:
+        """Increase total file size by amount
+
+        Args:
+            amount (int): increase amount. It can be negative.
+            ptc_id (int): target participant ID
+        """
+
+        key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
+        return r.incrby(key, amount)
+
+    def set_total_file_size(
+        self,
+        ptc_id: int,
+    ) -> int:
+        """Set total size bytes to ``size_key`` in Redis.
+        Total size equals to the sum of the scores of ``list_key`` items.
+
+        Args:
+            ptc_id (int): owner of the files
 
         XXX: If you want to calculate total size by iterating all file contents,
              please make sure files that are in AWS S3 is considered too.
         """
 
-        data = r.zscan_iter(r_list_key, score_cast_func=int)
+        list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+        size_key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
 
         total = 0
-        for _, size in data:
+        for _, size in r.zscan_iter(list_key, score_cast_func=int):
             total += size
 
-        r.set(r_size_key, total)
+        r.set(size_key, total)
         return total
 
-    @staticmethod
-    def get_cached_files(r_list_key: str, r_file_key_func: Callable, check_content: bool = True) -> list[str]:
-        """Return cached files from Redis if the files in the list
-        are all in the Redis.
+    def append_file_list(
+        self,
+        filename: str,
+        size: int,
+        ptc_id: int | None = None,
+        encoded=False,
+    ):
+        """Add new filename into file list. If ``ptc_id`` is None, it is appended to template list.
 
         Args:
-            list_key (str): fie list key in Redis
-            r_file_key_func (Callable): getter for file content key in Redis
+            filename (str): filename to add
+            size (int): file size
+            ptc_id (int | None, optional): owner participant's ID. Defaults to None.
+            encoded (bool, optional): whether the filename is encoded or plaintext. Defaults to False.
+        """
+
+        if not encoded:
+            filename = text_encode(filename)
+
+        if ptc_id:
+            list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+        else:
+            list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
+
+        r.zadd(list_key, {filename: size})
+
+    def get_file_list(
+        self,
+        ptc_id: int | None = None,
+        check_content: bool = True,
+    ) -> list[str]:
+        """Return cached files from Redis.
+        If ``check_content`` is True, this checks whether each file in the list is stored in the Redis.
+
+        Args:
+            ptc_id (int): owner participant's ID
             check_content (bool, optional): should check existence of each file. Defaults to True.
 
         Returns:
             list[str]: file names that cached
         """
 
-        data = r.zscan_iter(r_list_key, score_cast_func=int)
+        if ptc_id:
+            list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+            file_key_func = lambda hash: self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=hash)
+        else:
+            list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
+            file_key_func = lambda hash: self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash)
+
+        data = r.zscan_iter(list_key, score_cast_func=int)
         enc_file_names = [filename for filename, _ in data]  # remove score values
 
         if not check_content:
             return enc_file_names
 
-        cached = False
-        if enc_file_names:
-            cached = True
-
+        cached = bool(enc_file_names)
+        if cached:
             # Eviction 되는 경우의 처리를 위해, 파일들이 모두 존재하는지 확인
             for enc_filename in enc_file_names:
                 # Although empty string can't be stored in Redis, check content length.
                 _hashed_name = get_hashed(enc_filename)
-                _size = r.strlen(r_file_key_func(_hashed_name))
+                _size = r.strlen(file_key_func(_hashed_name))
                 if _size <= 0:
                     cached = False
                     break
@@ -71,19 +238,28 @@ class RedisControllerMixin:
         return enc_file_names if cached else []
 
 
-class S3ControllerMixin:
+class S3Controller:
+    def __init__(
+        self,
+        course_id: int,
+        lesson_id: int,
+        redis_key: RedisKey,
+    ):
+        self.s3_key = S3Key(course_id, lesson_id)
+        self.redis_key = redis_key
+
     @staticmethod
-    def get_s3_object_content(object_key: str, bucket: str | None = None) -> bytes:
+    def get_s3_object_content(
+        object_key: str,
+        bucket: str | None = None,
+    ) -> bytes:
         obj = s3.get_object(object_key, bucket)
         return obj["Body"].read()
 
-    @staticmethod
     def extract_to_redis(
-        object_key: str,
-        r_list_key: str,
-        r_file_key_func: Callable,
-        s3_bulk_file_key: str,
-        r_size_key: str | None = None,
+        self,
+        object_key: str | None = None,
+        ptc_id: int | None = None,
         ttl: int | None = None,
         overwrite: bool = True,
     ):
@@ -97,17 +273,24 @@ class S3ControllerMixin:
         ※ 파일 개수 혹은 용량 등에 대한 문제들은 업로드 시점에 처리해 줘야 함
 
         Args:
-            object_key (str): S3 object key
-            r_list_key (str): file list key in Redis
-            r_file_key_func (Callable): getter for file content key in Redis
-            s3_bulk_file_key (str): S3 object key for bulk file
-            r_size_key (str | None): total score(size) of r_list_key items
-            ttl (int | None): Time-to-live
+            ptc_id (int | None, optional): _description_. Defaults to None.
+            ttl (int | None, optional): Time-to-live. Defaults to None.
+            overwrite (bool, optional): If the key already exists, do/don't overwrite. Defaults to True.
 
         Raises:
             LessonTemplateException: When S3 object is not exists
             LessonTemplateException: When extraction failed
         """
+
+        if ptc_id:
+            object_key = object_key or self.s3_key.KEY_USER_PROJECT.format(ptc_id=ptc_id)
+            r_list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+            r_file_key_func = lambda hash: self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=hash)
+            r_size_key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
+        else:
+            r_list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
+            r_file_key_func = lambda hash: self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash)
+            r_size_key = None
 
         # S3 에서 다운로드 후 Redis 에 저장
         try:
@@ -138,7 +321,7 @@ class S3ControllerMixin:
 
                 for unzipped_file in files:
                     unzipped_file_path = os.path.join(root, unzipped_file)  # Absolute path
-                    project_file_path = os.path.join(project_path, unzipped_file)  # path from project root
+                    project_file_path = os.path.join(project_path, unzipped_file)  # file path from project root
                     enc_project_file_path = text_encode(project_file_path)
                     hashed_name = get_hashed(enc_project_file_path)
                     _r_file_key = r_file_key_func(hashed_name)
@@ -164,7 +347,7 @@ class S3ControllerMixin:
                         else:
                             # 파일이 너무 큰 경우, S3 에 해당 파일 업로드
                             _hashed_content = get_hashed(content.decode())
-                            _bulk_file_key = s3_bulk_file_key.format(filename=_hashed_content)
+                            _bulk_file_key = self.s3_key.KEY_BULK_FILE.format(filename=_hashed_content)
 
                             if not s3.is_exists(_bulk_file_key):
                                 # S3 에 없는 경우, 해당 파일만 따로 업로드

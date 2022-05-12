@@ -12,10 +12,3 @@ class S3Key(LessonKeyBase):
 
     # 용량 제한을 넘는 템플릿 or 유저 파일
     KEY_BULK_FILE = "/bulk/{filename}"  # filename: hashed content
-
-
-if __name__ == "__main__":
-    sk = S3Key(3, 4)
-    print(sk.KEY_LESSON_TEMPLATE)
-    print(sk.KEY_USER_PROJECT)
-    print(sk.KEY_USER_PROJECT.format(ptcId=1234))

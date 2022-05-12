@@ -24,9 +24,3 @@ class RedisKey(LessonKeyBase):
     KEY_USER_FILE_LIST = "{ptc_id}:files"  # ZSET: enc(filename): size
     # 유저별 파일 내용
     KEY_USER_FILE_CONTENT = "{ptc_id}:files:{hash}"  # STRING(binary): hash==hash(enc(filename))
-
-
-if __name__ == "__main__":
-    rk = RedisKey(1, 2)
-    print(rk.KEY_USER_CUR_SIZE)
-    print(rk.KEY_USER_CUR_SIZE.format(ptc_id=1234))

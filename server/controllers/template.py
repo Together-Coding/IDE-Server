@@ -1,48 +1,17 @@
 import os
 
-from constants.redis import RedisKey
-from constants.s3 import S3Key
-from server.controllers.base import BaseContoller
-from server.controllers.file import S3ControllerMixin, RedisControllerMixin
-from server.helpers.redis_ import r
-from server.models.course import Lesson, LessonFile, Participant
-from server.helpers import s3
+from server.controllers.base import LessonBaseController
+from server.models.course import Lesson, Participant
 from server.utils.etc import get_hashed
 
 
-class LessonTemplateController(BaseContoller, S3ControllerMixin, RedisControllerMixin):
+class LessonTemplateController(LessonBaseController):
     """A controller that is used to manipulate template files attached to each lesson"""
 
-    def _cache_template(self, ptc: Participant, lesson: Lesson):
+    def _cache_template(self, lesson: Lesson):
         """Cache template files into Redis."""
 
-        redis_key = RedisKey(course_id=ptc.course_id, lesson_id=lesson.id)
-        s3_key = S3Key(course_id=ptc.course_id, lesson_id=lesson.id)
-
-        self.extract_to_redis(
-            object_key=lesson.file.url,
-            r_list_key=redis_key.KEY_TEMPLATE_FILE_LIST,
-            r_file_key_func=lambda hash: redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash),
-            s3_bulk_file_key=s3_key.KEY_BULK_FILE,
-            ttl=6 * 3600,
-        )
-
-    def _get_template_cached(self, redis_key: RedisKey, check_content: bool = True) -> list[str]:
-        """Return cached template files from Redis if all template files are there
-
-        Args:
-            redis_key (RedisKey): RedisKey to generate `KEY_TEMPLATE_FILE_LIST`
-            check_content (bool): If true, return file list from Redis right away
-
-        Returns:
-            list[str]: template file list if cached, otherwise, empty list
-        """
-
-        return self.get_cached_files(
-            r_list_key=redis_key.KEY_TEMPLATE_FILE_LIST,
-            r_file_key_func=lambda hash: redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash),
-            check_content=check_content,
-        )
+        self.s3_ctrl.extract_to_redis(object_key=lesson.file.url, ttl=6 * 3600)
 
     def apply_to_user_project(self, ptc: Participant, lesson: Lesson):
         """Apply lesson template to user's project.
@@ -57,43 +26,46 @@ class LessonTemplateController(BaseContoller, S3ControllerMixin, RedisController
             return
 
         # Redis 에서 템플릿 정보 가져오기
-        redis_key = RedisKey(course_id=ptc.course_id, lesson_id=lesson.id)
-        tmpl_files = list(self._get_template_cached(redis_key))
+        enc_filenames = list(self.redis_ctrl.get_file_list(check_content=True))
 
         # Redis 에 정보가 존재하지 않는 경우, S3 에서 다운로드 & 저장
-        if not tmpl_files:
-            self._cache_template(ptc, lesson)
-            tmpl_files = self._get_template_cached(redis_key, check_content=False)
+        if not enc_filenames:
+            self._cache_template(lesson)
+            enc_filenames = self.redis_ctrl.get_file_list(check_content=False)
 
         # Redis 에 존재하는 템플릿 데이터들을 유저의 project 에 복사
-        for filename in tmpl_files:
+        for enc_filename in enc_filenames:
             # XXX: Race condition 발생 가능
-            _hashed_name = get_hashed(filename)
-            _tmpl_file_key = redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=_hashed_name)
+            _hashed_name = get_hashed(enc_filename)
 
-            content = r.get(_tmpl_file_key)
-            size = r.strlen(_tmpl_file_key)
+            content = self.redis_ctrl.get_file(filename=_hashed_name, hashed=True)
+            size = self.redis_ctrl.get_file_size_len(filename=_hashed_name, ptc_id=None, hashed=True)
 
             # 이미 동일한 파일명이 존재하는 경우, suffix 추가
-            idx = 0
-            while bool(r.zscore(redis_key.KEY_USER_FILE_LIST, filename)):
-                _name, _ext = os.path.splitext(filename)
-                filename = f"{_name}_{idx}.{_ext}"
+            _name, _ext = os.path.splitext(enc_filename)
+            dup_idx = 0
+            while dup_idx < 100:  # Set max retry
+                if bool(self.redis_ctrl.get_file_size_score(enc_filename, ptc_id=ptc.id, encoded=False)):
+                    enc_filename = f"{_name}_{dup_idx}.{_ext}"
+                    dup_idx += 1
+                else:
+                    break
+            else:
+                # Do not overwrite existing file.
+                continue
 
             # filename 을 새로 계산한 경우, hashed_name 재계산
-            if idx != 0:
-                _hashed_name = get_hashed(filename)
+            if dup_idx != 0:
+                _hashed_name = get_hashed(enc_filename)
 
-            # 파일명 리스트
-            r.zadd(redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc.id), {filename: size})
-
-            _redis_file_key = redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc.id, hash=_hashed_name)
+            # 파일명 리스트에 추가
+            self.redis_ctrl.append_file_list(filename=enc_filename, size=size, ptc_id=ptc.id, encoded=True)
 
             # 기존 파일 사이즈 확인
-            old_size = r.strlen(_redis_file_key) or 0
+            old_size = self.redis_ctrl.get_file_size_len(filename=_hashed_name, ptc_id=ptc.id, hashed=True)
 
             # 파일 내용 저장
-            r.set(_redis_file_key, content)
+            self.redis_ctrl.store_file(filename=_hashed_name, content=content, ptc_id=ptc.id, hashed=True)
 
             # 총 파일 사이즈 업데이트
-            r.incrby(redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc.id), size - old_size)
+            self.redis_ctrl.increase_total_file_size(amount=size - old_size, ptc_id=ptc.id)
