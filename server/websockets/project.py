@@ -44,19 +44,19 @@ async def modify_project_permission(sid: str, data=None):
     """나의 프로젝트에 대한 각 유저의 권한 변경
 
     data: {
-        userId: (int) target user's participant ID
+        targetId: (int) target user's participant ID
         permission: (int) new RWX permission
     }
     """
 
     proj_ctrl = await ProjectController.from_session(sid, get_db())
     if type(data) != list:
-        return await sio.emit(WSEvent.PROJECT_PERM, {"success": False, "error": "list type is expected."}, to=sid)
+        return await sio.emit(WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid)
 
     modified_noti = []
     for d in data:
         try:
-            row = proj_ctrl.modify_project_permission(d["userId"], d["permission"])
+            row = proj_ctrl.modify_project_permission(d["targetId"], d["permission"])
             if not row:
                 continue
 

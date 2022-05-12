@@ -10,7 +10,7 @@ class WSEvent:
 
     # File and directory
     DIR_INFO = "DIR_INFO"
-    FILE_READ = "FILE_OPEN"
+    FILE_READ = "FILE_READ"
     FILE_CREATE = "FILE_CREATE"
     FILE_UPDATE = "FILE_UPDATE"
     FILE_DELETE = "FILE_DELETE"
