@@ -10,7 +10,7 @@ from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.etc import get_hashed
+from server.utils.etc import get_hashed, text_encode, text_decode_list
 from server.utils.exceptions import (
     ForbiddenProjectException,
     ParticipantNotFoundException,
@@ -169,15 +169,15 @@ class ProjectController(LessonBaseController):
 
 
 class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisControllerMixin):
-    def _get_project_cached(self):
+    def _get_project_cached(self, target_ptc: Participant):
         """Return user's cached project files from Redis"""
 
         redis_key = RedisKey(self.course_id, self.lesson_id)
 
         return self.get_cached_files(
-            r_list_key=redis_key.KEY_USER_FILE_LIST.format(ptc_id=self.my_participant.id),
+            r_list_key=redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id),
             r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(
-                ptc_id=self.my_participant.id, hash=hash
+                ptc_id=target_ptc.id, hash=hash
             ),
             check_content=True,
         )
@@ -299,7 +299,7 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
         return target_ptc, target_proj
 
     def get_dir_info(self, target_ptc_id: int) -> list[str]:
-        """Return target user's file list
+        """Return target user's file list (encoded)
 
         Args:
             target_ptc_id (int): participant ID that is the owner of the project

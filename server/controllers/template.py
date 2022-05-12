@@ -22,7 +22,7 @@ class LessonTemplateController(BaseContoller, S3ControllerMixin, RedisController
         self.extract_to_redis(
             object_key=lesson.file.url,
             r_list_key=redis_key.KEY_TEMPLATE_FILE_LIST,
-            r_file_key_func=lambda: redis_key.KEY_TEMPLATE_FILE_CONTENT,
+            r_file_key_func=lambda hash: redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash),
             s3_bulk_file_key=s3_key.KEY_BULK_FILE,
             ttl=6 * 3600,
         )
@@ -55,7 +55,6 @@ class LessonTemplateController(BaseContoller, S3ControllerMixin, RedisController
         # 템플릿이 존재하지 않는 경우, 아무것도 하지 않는다.
         if not lesson.file or not lesson.file.url:
             return
-
 
         # Redis 에서 템플릿 정보 가져오기
         redis_key = RedisKey(course_id=ptc.course_id, lesson_id=lesson.id)

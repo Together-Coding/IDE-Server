@@ -101,7 +101,7 @@ async def get_dir_info(sid: str, data: dict | None = None):
 @sio.on(WSEvent.FILE_READ)
 @requires(WSEvent.FILE_READ, ["ownerId", "file"])
 async def file_read(sid: str, data: dict):
-    """
+    """Return file content of the owner
 
     data: {
         ownerId: (int) owner user's participant ID

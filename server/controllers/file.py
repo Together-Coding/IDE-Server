@@ -50,25 +50,25 @@ class RedisControllerMixin:
         """
 
         data = r.zscan_iter(r_list_key, score_cast_func=int)
-        files = [filename for filename, _ in data]  # remove score values
+        enc_file_names = [filename for filename, _ in data]  # remove score values
 
         if not check_content:
-            return files
+            return enc_file_names
 
         cached = False
-        if files:
+        if enc_file_names:
             cached = True
 
             # Eviction 되는 경우의 처리를 위해, 파일들이 모두 존재하는지 확인
-            for filename in files:
+            for enc_filename in enc_file_names:
                 # Although empty string can't be stored in Redis, check content length.
-                _hashed_name = get_hashed(filename)
+                _hashed_name = get_hashed(enc_filename)
                 _size = r.strlen(r_file_key_func(_hashed_name))
                 if _size <= 0:
                     cached = False
                     break
 
-        return files if cached else []
+        return enc_file_names if cached else []
 
 
 class S3ControllerMixin:
@@ -133,27 +133,37 @@ class S3ControllerMixin:
 
             # 임시 파일들을 모두 읽고, 각각 Redis 에 저장
             for root, _, files in os.walk(unzip_dir):
+                # /tmp/asdf/project_root/file.py -> project_root/file.py
+                project_path = root.replace(unzip_dir, "").strip("/")  # Path from Project root
+
                 for unzipped_file in files:
-                    unzipped_path = os.path.join(root, unzipped_file)
-
-                    # 파일 리스트 저장 (raw filename)
-                    hashed_name = get_hashed(unzipped_file)
-                    size = os.stat(unzipped_path).st_size
-                    r.zadd(r_list_key, {unzipped_file: size})
-
+                    unzipped_file_path = os.path.join(root, unzipped_file)  # Absolute path
+                    project_file_path = os.path.join(project_path, unzipped_file)  # path from project root
+                    enc_project_file_path = text_encode(project_file_path)
+                    hashed_name = get_hashed(enc_project_file_path)
                     _r_file_key = r_file_key_func(hashed_name)
+
+                    # 파일 리스트 저장
+                    size = os.stat(unzipped_file_path).st_size
+                    r.zadd(r_list_key, {enc_project_file_path: size})
 
                     # 기존 파일 사이즈 확인
                     if r_size_key:
                         old_size = r.strlen(_r_file_key) or 0
 
                     # 파일 저장
-                    with open(unzipped_path, "rb") as fp:
+                    with open(unzipped_file_path, "rb") as fp:
+                        content: bytes = fp.read()
+
+                        # If no content, add one space to store it in Redis
+                        if size <= 0:
+                            content = b" "
+
                         if size <= SIZE_LIMIT:
-                            r.set(name=_r_file_key, value=fp.read(), ex=ttl, nx=not overwrite)
+                            r.set(name=_r_file_key, value=content, ex=ttl, nx=not overwrite)
                         else:
                             # 파일이 너무 큰 경우, S3 에 해당 파일 업로드
-                            _hashed_content = get_hashed(fp.read().decode())
+                            _hashed_content = get_hashed(content.decode())
                             _bulk_file_key = s3_bulk_file_key.format(filename=_hashed_content)
 
                             if not s3.is_exists(_bulk_file_key):

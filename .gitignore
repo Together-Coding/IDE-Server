@@ -5,3 +5,6 @@ __pycache__
 .secrets
 .env
 .env.production
+
+.coverage
+.pytest_cache

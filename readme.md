@@ -18,3 +18,5 @@
 - Start server
     1. `$ export $(cat .env | grep -v "#" | xargs)`
     1. `$ DEBUG=true uvicorn app:app --port 8001 --reload`
+- Test
+    `$ make test`
