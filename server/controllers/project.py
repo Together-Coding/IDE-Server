@@ -205,53 +205,6 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
 
         return allowed
 
-    def get_my_dir_info(self) -> list[str]:
-        """Return file list of my project
-
-        If ``UserProject`` does not exists for the user, create new one, and apply template project to it.
-        If exists but not cached by Redis, download zip from S3 and save the contents into Redis.
-
-        Returns:
-            list[str]: file names of the user
-        """
-
-        redis_key = RedisKey(self.course_id, self.lesson_id)
-        s3_key = S3Key(self.course_id, self.lesson_id)
-
-        # UserProject 생성이 안 된 경우 (수업에 처음 입장한 시점)
-        if not self.my_project:
-            # UserProject 생성
-            proj_ctrl = ProjectController(
-                self.user_id, self.course_id, self.lesson_id, self.my_participant, self.my_project, db=self.db
-            )
-            proj_ctrl.create_if_not_exists()
-
-            # 수업 템플릿 코드 적용
-            tmpl_ctrl = LessonTemplateController(self.db)
-            tmpl_ctrl.apply_to_user_project(self.my_participant, self.my_lesson)
-        else:  # UserProject 가 있는 경우
-            # Redis 에 캐시되어 있는지 확인
-            project_files = self._get_project_cached()
-
-            if project_files:
-                return project_files
-
-            # 캐시 되어있지 않다면, S3 에서 유저의 프로젝트 다운로드
-            r_list_key = redis_key.KEY_USER_FILE_LIST.format(ptc_id=self.my_participant.id)
-            r_size_key = redis_key.KEY_USER_CUR_SIZE.format(ptc_id=self.my_participant.id)
-
-            self.extract_to_redis(
-                object_key=s3_key.KEY_USER_PROJECT.format(ptc_id=self.my_participant.id),
-                r_list_key=r_list_key,
-                r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(
-                    ptc_id=self.my_participant.id, hash=hash
-                ),
-                s3_bulk_file_key=s3_key.KEY_BULK_FILE,
-            )
-            self.set_total_file_size(r_list_key, r_size_key=r_size_key)
-
-        return r.zrange(redis_key.KEY_USER_FILE_LIST.format(ptc_id=self.my_participant.id), 0, -1)
-
     def _ptc_info(self, ptc_id: int) -> Participant:
         """Return ``ptc_id`` related ``Participant`` and its ``UserProject``"""
 
@@ -306,16 +259,47 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
                                  the requester want to see.
         """
 
-        # "My" file list is processed by ``get_my_file_list``
-        if target_ptc_id == self.my_participant.id:
-            return self.get_my_dir_info()
+        target_ptc, target_proj = self.get_target_info(target_ptc_id, PROJ_PERM.READ)
+        self_request = target_ptc.id == self.my_participant.id
 
-        self.get_target_info(target_ptc_id, PROJ_PERM.READ)
+        redis_key = RedisKey(self.course_id, self.lesson_id)
+        s3_key = S3Key(self.course_id, self.lesson_id)
+
+        # UserProject 생성이 안 된 경우
+        if not target_proj:
+            # 자기 자신에 대한 요청인 경우, 생성
+            if self_request:
+                proj_ctrl = ProjectController(
+                    self.user_id, self.course_id, self.lesson_id, target_ptc, target_proj, db=self.db
+                )
+                proj_ctrl.create_if_not_exists()
+
+                # 수업 템플릿 코드 적용
+                tmpl_ctrl = LessonTemplateController(self.db)
+                tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
+            else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
+                raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
+        else:  # UserProject 가 있는 경우
+            # Redis 에 캐시되어 있는지 확인
+            project_files = self._get_project_cached(target_ptc)
+
+            if project_files:
+                return project_files
+
+            # 캐시 되어있지 않다면, S3 에서 유저의 프로젝트 다운로드
+            r_list_key = redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id)
+            r_size_key = redis_key.KEY_USER_CUR_SIZE.format(ptc_id=target_ptc.id)
+
+            self.extract_to_redis(
+                object_key=s3_key.KEY_USER_PROJECT.format(ptc_id=target_ptc.id),
+                r_list_key=r_list_key,
+                r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=hash),
+                s3_bulk_file_key=s3_key.KEY_BULK_FILE,
+            )
+            self.set_total_file_size(r_list_key, r_size_key=r_size_key)
 
         # 대상 프로젝트를 읽을 수 있다면, 저장소에서 가져온다.
-        r_files_key = RedisKey(self.course_id, self.lesson_id).KEY_USER_FILE_LIST.format(ptc_id=target_ptc_id)
-
-        return r.zrange(r_files_key, 0, -1)
+        return r.zrange(redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id), 0, -1)
 
     def get_file_content(self, owner_id: int, filename: str):
         """Return file content from Redis.
