@@ -6,10 +6,14 @@ class WSEvent:
     # Project permission
     PROJECT_ACCESSIBLE = "PROJECT_ACCESSIBLE"
     PROJECT_PERM = "PROJECT_PERM"
+    PROJECT_PERM_CHANGED = "PROJECT_PERM_CHANGED"
 
     # File and directory
     DIR_INFO = "DIR_INFO"
-    FILE_OPEN = "FILE_OPEN"
+    FILE_READ = "FILE_OPEN"
+    FILE_CREATE = "FILE_CREATE"
+    FILE_UPDATE = "FILE_UPDATE"
+    FILE_DELETE = "FILE_DELETE"
 
 
 class Room:

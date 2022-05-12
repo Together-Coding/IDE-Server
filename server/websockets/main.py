@@ -1,8 +1,33 @@
+import functools
+from typing import Awaitable
+
 from socketio.exceptions import ConnectionRefusedError
 
 from server import sio
 from server.controllers.user import AuthController
+from server.utils.response import ws_error_response
 from server.websockets import session as ws_session
+
+
+def requires(event, names: list):
+    def decorator(f: Awaitable):
+        @functools.wraps(f)
+        async def decorated(sid: str, data: dict, *args, **kwargs):
+            if type(data) != dict:
+                data = {}
+
+            errs = []
+            for name in names:
+                if name not in data:
+                    errs.append(f"`{name}` is required.")
+            if errs:
+                return await sio.emit(event, ws_error_response(errs), to=sid)
+
+            return await f(sid, data, *args, **kwargs)
+
+        return decorated
+
+    return decorator
 
 
 @sio.event

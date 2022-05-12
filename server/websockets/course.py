@@ -3,23 +3,16 @@ from server import sio
 from server.controllers.project import ProjectController
 from server.helpers.db import get_db
 from server.websockets import session as ws_session
+from server.websockets.main import requires
 
 
 @sio.on(WSEvent.INIT_LESSON)
+@requires(WSEvent.INIT_LESSON, ["courseId", "lessonId"])
 async def init_lesson(sid: str, data=None):
     """Initialize lesson websocket session"""
 
-    errs = []
     course_id = data.get("courseId")
     lesson_id = data.get("lessonId")
-
-    if not course_id:
-        errs.append("`courseId` is required.")
-    elif not lesson_id:
-        errs.append("`lessonId` is required.")
-
-    if errs:
-        return await sio.emit(WSEvent.INIT_LESSON, data={"success": False, "error": errs}, to=sid)
 
     # 수업 정보 저장
     await ws_session.update(sid, {"course_id": course_id, "lesson_id": lesson_id})

@@ -7,6 +7,7 @@ from server.models.course import PROJ_PERM
 from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
+from server.websockets.main import requires
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
@@ -70,16 +71,21 @@ async def modify_project_permission(sid: str, data=None):
     for noti in modified_noti:
         # 권한이 변경된 유저들에게 알림을 전송한다.
         ptc_room = Room.PERSONAL_PTC.format(ptc_id=noti["userId"])
-        await sio.emit(WSEvent.PROJECT_PERM, noti, room=ptc_room)
+        await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room)
 
-    await sio.emit(WSEvent.PROJECT_PERM, {"success": True, "error": "Permission changed."}, to=sid)
+    await sio.emit(WSEvent.PROJECT_PERM, {"message": "Permission changed."}, to=sid)
 
 
 @sio.on(WSEvent.DIR_INFO)
+@requires(WSEvent.DIR_INFO, ["targetId"])
 async def get_dir_info(sid: str, data: dict | None = None):
+    """``targetId` 에 해당하는 Participant 의 directory, file 리스트를 반환한다.
+
+    data: {
+        targetId: (int) target user's participant ID
+    }
+    """
     target_ptc_id = data.get("targetId")
-    if not target_ptc_id:
-        return await sio.emit(WSEvent.DIR_INFO, ws_error_response("'targetId' is required."), to=sid)
 
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
@@ -92,23 +98,22 @@ async def get_dir_info(sid: str, data: dict | None = None):
         return await sio.emit(WSEvent.DIR_INFO, ws_error_response("Unknown error occurred."), to=sid)
 
 
-@sio.on(WSEvent.FILE_OPEN)
-async def file_open(sid: str, data: dict):
-    errs = []
+@sio.on(WSEvent.FILE_READ)
+@requires(WSEvent.FILE_READ, ["ownerId", "file"])
+async def file_read(sid: str, data: dict):
+    """
+
+    data: {
+        ownerId: (int) owner user's participant ID
+        file: (str) file name to read
+    }
+    """
     owner_id = data.get("ownerId")
     file = data.get("file")
-
-    if not owner_id:
-        errs.append("`ownerId` is required.")
-    elif not file:
-        errs.append("`file` is required.")
-
-    if errs:
-        return await sio.emit(WSEvent.FILE_OPEN, ws_error_response(errs), to=sid)
 
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         content = proj_file_ctrl.get_file_content(owner_id, file)
-        await sio.emit(WSEvent.FILE_OPEN, {"ownerId": owner_id, "file": file, "content": content}, to=sid)
+        await sio.emit(WSEvent.FILE_READ, {"ownerId": owner_id, "file": file, "content": content}, to=sid)
     except BaseException as e:
         return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)
