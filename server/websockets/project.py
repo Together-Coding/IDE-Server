@@ -1,14 +1,12 @@
 from constants.ws import Room, WSEvent
 from server import sio
-from server.controllers.project import (PingController, ProjectController,
-                                        ProjectFileController)
+from server.controllers.project import PingController, ProjectController, ProjectFileController
 from server.helpers import sentry
 from server.helpers.db import get_db
 from server.models.course import PROJ_PERM
 from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
-from server.websockets import session as ws_session
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
@@ -92,3 +90,25 @@ async def get_dir_info(sid: str, data: dict | None = None):
     except Exception as e:
         sentry.exc()
         return await sio.emit(WSEvent.DIR_INFO, ws_error_response("Unknown error occurred."), to=sid)
+
+
+@sio.on(WSEvent.FILE_OPEN)
+async def file_open(sid: str, data: dict):
+    errs = []
+    owner_id = data.get("ownerId")
+    file = data.get("file")
+
+    if not owner_id:
+        errs.append("`ownerId` is required.")
+    elif not file:
+        errs.append("`file` is required.")
+
+    if errs:
+        return await sio.emit(WSEvent.FILE_OPEN, ws_error_response(errs), to=sid)
+
+    try:
+        proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
+        content = proj_file_ctrl.get_file_content(owner_id, file)
+        await sio.emit(WSEvent.FILE_OPEN, {"ownerId": owner_id, "file": file, "content": content}, to=sid)
+    except BaseException as e:
+        return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)

@@ -112,6 +112,9 @@ class ProjectViewer(Base):
     def __repr__(self):
         return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
 
+    def has_perm(self, need_perm: PROJ_PERM):
+        return self.permission & need_perm
+
     @property
     def read_allowed(self):
         return self.permission & PROJ_PERM.READ

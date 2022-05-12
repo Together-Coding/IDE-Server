@@ -2,16 +2,22 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session, joinedload
 
-from constants.redis import RedisKey
+from constants.redis import SIZE_LIMIT, RedisKey
 from constants.s3 import S3Key
-from server.helpers.redis_ import r
 from server.controllers.base import LessonBaseController
-from server.controllers.template import LessonTemplateController
 from server.controllers.file import RedisControllerMixin, S3ControllerMixin
+from server.controllers.template import LessonTemplateController
+from server.helpers import s3
+from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.exceptions import ParticipantNotFoundException, ProjectNotFoundException
-from server.utils.time_utils import utc_dt_now
 from server.utils.etc import get_hashed
+from server.utils.exceptions import (
+    ForbiddenProjectException,
+    ParticipantNotFoundException,
+    ProjectFileException,
+    ProjectNotFoundException,
+)
+from server.utils.time_utils import utc_dt_now
 from server.websockets import project
 from server.websockets import session as ws_session
 
@@ -176,6 +182,29 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
             check_content=True,
         )
 
+    def _check_permission(
+        self, check_perm: PROJ_PERM, viewer: Participant, target_ptc: Participant, target_proj: UserProject
+    ):
+        perm: ProjectViewer = (
+            self.db.query(ProjectViewer)
+            .filter(ProjectViewer.viewer_id == viewer.id)  # 요청을 보낸 유저
+            .filter(ProjectViewer.project_id == target_proj.id)  # R/W/X 대상 프로젝트
+            .first()
+        )
+
+        allowed = False
+        if viewer.is_teacher or target_ptc.is_teacher:
+            # 선생으로부터 요청 or 선생의 코드 요청
+            # 권한이 명시되어 있지 않거나 (기본), 명시적으로 허용된 경우에 OK
+            if not perm or perm.has_perm(check_perm):
+                allowed = True
+        else:
+            # 둘 다 선생이 아닌 경우, 권한이 존재한다면 OK
+            if perm and perm.has_perm(check_perm):
+                allowed = True
+
+        return allowed
+
     def get_my_dir_info(self) -> list[str]:
         """Return file list of my project
 
@@ -217,11 +246,57 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
                 r_file_key_func=lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(
                     ptc_id=self.my_participant.id, hash=hash
                 ),
-                s3_bulk_file_key=s3_key.KEY_BULK_FILE
+                s3_bulk_file_key=s3_key.KEY_BULK_FILE,
             )
             self.set_total_file_size(r_list_key, r_size_key=r_size_key)
 
         return r.zrange(redis_key.KEY_USER_FILE_LIST.format(ptc_id=self.my_participant.id), 0, -1)
+
+    def _ptc_info(self, ptc_id: int) -> Participant:
+        """Return ``ptc_id`` related ``Participant`` and its ``UserProject``"""
+
+        target_ptc: Participant = (
+            self.db.query(Participant).filter(Participant.id == ptc_id).options(joinedload(Participant.project)).first()
+        )
+        return target_ptc, target_ptc.project if target_ptc else None
+
+    def get_target_info(
+        self, target_ptc_id: int, check_perm: PROJ_PERM | None = None
+    ) -> tuple[Participant, UserProject]:
+        """Return ``Participant`` related with ``target_ptc_id`` and its ``UserProject``
+        with additional exceptions and permission check.
+
+        Args:
+            target_ptc_id (int): target participant ID
+            perm (PROJ_PERM | None, optional): permission to check if exists. Defaults to None.
+
+        Raises:
+            ParticipantNotFoundException: When the target does not exists
+            ProjectNotFoundException: When the target did not enter the lesson
+            ForbiddenProjectException: When no enough permission
+
+        Returns:
+            tuple[Participant, UserProject]: target user's
+        """
+
+        # 자기 자신에 대한 요청
+        if target_ptc_id == self.my_participant.id:
+            return self.my_participant, self.my_project
+
+        target_ptc, target_proj = self._ptc_info(target_ptc_id)
+
+        if not target_ptc:
+            raise ParticipantNotFoundException("존재하지 않는 유저입니다.")
+        elif not target_proj:
+            raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
+
+        # 권한 확인
+        if check_perm:
+            allowed = self._check_permission(check_perm, self.my_participant, target_ptc, target_proj)
+            if not allowed:
+                raise ForbiddenProjectException("해당 유저에 대한 읽기 권한이 없습니다.")
+
+        return target_ptc, target_proj
 
     def get_dir_info(self, target_ptc_id: int) -> list[str]:
         """Return target user's file list
@@ -234,43 +309,58 @@ class ProjectFileController(LessonBaseController, S3ControllerMixin, RedisContro
         # "My" file list is processed by ``get_my_file_list``
         if target_ptc_id == self.my_participant.id:
             return self.get_my_dir_info()
-        else:
-            target_ptc: Participant = (
-                self.db.query(Participant)
-                .filter(Participant.id == target_ptc_id)
-                .options(joinedload(Participant.project))
-                .first()
-            )
-            target_proj = target_ptc.project if target_ptc else None
 
-        if not target_ptc:
-            raise ParticipantNotFoundException("존재하지 않는 유저입니다.")
-        elif not target_proj:
-            raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
-
-        # 권한 확인
-        perm: ProjectViewer = (
-            self.db.query(ProjectViewer)
-            .filter(ProjectViewer.project_id == target_proj.id)  # 해당 유저의 프로젝트
-            .filter(ProjectViewer.viewer_id == self.my_participant.id)
-            .first()
-        )
-
-        allowed = False
-        if self.my_participant.is_teacher or target_ptc.is_teacher:
-            # 선생으로부터 요청 or 선생의 코드 요청
-            # 권한이 명시되어 있지 않거나 (기본), 명시적으로 읽기가 허용된 경우에 OK
-            if not perm or perm.read_allowed:
-                allowed = True
-        else:
-            # 둘 다 선생이 아닌 경우, 읽기 권한이 존재한다면 OK
-            if perm and perm.read_allowed:
-                allowed = True
-
-        if not allowed:
-            raise ParticipantNotFoundException("해당 유저에 대한 읽기 권한이 없습니다.")
+        self.get_target_info(target_ptc_id, PROJ_PERM.READ)
 
         # 대상 프로젝트를 읽을 수 있다면, 저장소에서 가져온다.
         r_files_key = RedisKey(self.course_id, self.lesson_id).KEY_USER_FILE_LIST.format(ptc_id=target_ptc_id)
 
         return r.zrange(r_files_key, 0, -1)
+
+    def get_file_content(self, owner_id: int, filename: str):
+        """Return file content from Redis.
+        When the file is in S3, download it and store into Redis before returning it.
+
+        Args:
+            owner_id (int): owner ID of the file
+            filename (str): filename to read
+        """
+
+        target_ptc, target_proj = self.get_target_info(owner_id, PROJ_PERM.READ)
+
+        # File list 에 존재하는지 확인
+        redis_key = RedisKey(self.course_id, self.lesson_id)
+        _r_list_key = redis_key.KEY_USER_FILE_LIST.format(ptc_id=target_ptc.id)
+        size = r.zscore(_r_list_key, filename)
+
+        # Redis 에 없는 경우
+        if size is None:
+            # S3 에 유저별 코드 zip 파일이 존재하는지 확인. 없다면 에러 반환
+            s3_key = S3Key(self.course_id, self.lesson_id)
+            _user_project_key = s3_key.KEY_USER_PROJECT.format(ptc_id=target_ptc.id)
+            if not s3.is_exists(_user_project_key):
+                raise ProjectFileException("파일이 존재하지 않습니다.")
+
+            # 있다면 압축을 풀고 Redis 에 저장. 해당 UserProject 가 active 상태라면 TTL=0,
+            # inactive 상태라면 TTL=3600 을 설정하여, Redis 메모리를 불필요하게 차지하지 않도록 한다.
+            _r_file_key_func = lambda hash: redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=hash)
+            _r_size_key = redis_key.KEY_USER_CUR_SIZE.format(ptc_id=target_ptc.id)
+            _s3_bulk_file_key = s3_key.KEY_BULK_FILE
+            _ttl = None if target_proj.active else 3600
+            self.extract_to_redis(
+                _user_project_key, _r_list_key, _r_file_key_func, _s3_bulk_file_key, _r_size_key, _ttl, overwrite=False
+            )
+
+            # 사이즈 다시 확인
+            size = r.zscore(_r_list_key, filename)
+
+        # Redis 에서 반환
+        _r_file_key = redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=target_ptc.id, hash=get_hashed(filename))
+        if size is None or size < 0:
+            raise ProjectFileException("파일이 존재하지 않습니다.")
+        elif 0 <= size < SIZE_LIMIT:  # 적당한 크기
+            return r.get(_r_file_key)
+        elif SIZE_LIMIT < size:  # Redis 임의 제한 초과
+            # AWS S3 에서 bulk file 다운로드, 반환
+            s3_object_key = r.get(_r_file_key)
+            return self.get_s3_object_content(s3_object_key).decode()

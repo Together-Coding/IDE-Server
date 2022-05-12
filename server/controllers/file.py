@@ -21,6 +21,9 @@ class RedisControllerMixin:
         Args:
             r_list_key (str): file list key
             r_size_key (str): total size key
+
+        XXX: If you want to calculate total size by iterating all file contents,
+             please make sure files that are in AWS S3 is considered too.
         """
 
         data = r.zscan_iter(r_list_key, score_cast_func=int)
@@ -70,6 +73,11 @@ class RedisControllerMixin:
 
 class S3ControllerMixin:
     @staticmethod
+    def get_s3_object_content(object_key: str, bucket: str | None = None) -> bytes:
+        obj = s3.get_object(object_key, bucket)
+        return obj["Body"].read()
+
+    @staticmethod
     def extract_to_redis(
         object_key: str,
         r_list_key: str,
@@ -77,6 +85,7 @@ class S3ControllerMixin:
         s3_bulk_file_key: str,
         r_size_key: str | None = None,
         ttl: int | None = None,
+        overwrite: bool = True,
     ):
         """Extract zip file from redis, and then store it into Redis
 
@@ -141,11 +150,7 @@ class S3ControllerMixin:
                     # 파일 저장
                     with open(unzipped_path, "rb") as fp:
                         if size <= SIZE_LIMIT:
-                            r.set(
-                                name=_r_file_key,
-                                value=fp.read(),
-                                ex=ttl,
-                            )
+                            r.set(name=_r_file_key, value=fp.read(), ex=ttl, nx=not overwrite)
                         else:
                             # 파일이 너무 큰 경우, S3 에 해당 파일 업로드
                             _hashed_content = get_hashed(fp.read().decode())
