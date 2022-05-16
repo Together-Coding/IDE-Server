@@ -4,6 +4,7 @@ import zipfile
 from typing import Callable
 
 from botocore.errorfactory import ClientError
+from redis.client import StrictRedis, Pipeline
 
 from constants.redis import SIZE_LIMIT, RedisKey
 from constants.s3 import S3Key
@@ -16,12 +17,28 @@ from server.utils.exceptions import FileAlreadyExistsException, ProjectFileExcep
 class RedisController:
     def __init__(
         self,
-        course_id: int,
-        lesson_id: int,
+        course_id: int | None = None,
+        lesson_id: int | None = None,
+        redis_key: RedisKey | None = None,
+        r_: StrictRedis | Pipeline = r,
     ):
+
+        self.r = r_
         self.redis_key = None
 
-        self.update_base_key(course_id, lesson_id)
+        if course_id and lesson_id:
+            self.update_base_key(course_id, lesson_id)
+        elif redis_key:
+            self.redis_key = redis_key
+        else:
+            raise ValueError("(course_id and lesson_id) or redis_key is required.")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if isinstance(self.r, Pipeline):
+            self.r.execute()
 
     def update_base_key(
         self,
@@ -54,13 +71,13 @@ class RedisController:
         else:
             file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
 
-        r.set(file_key, content)
+        self.r.set(file_key, content)
 
     def get_file(
         self,
         filename: str,
         ptc_id: int | None = None,
-        hashed=False,
+        hashed: bool = False,
     ) -> str:
         """Return file content from Redis.
 
@@ -78,7 +95,7 @@ class RedisController:
         else:
             file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
 
-        return r.get(file_key)
+        return self.r.get(file_key)
 
     def get_file_size_len(
         self,
@@ -103,7 +120,7 @@ class RedisController:
         else:
             file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
 
-        return r.strlen(file_key) or 0
+        return self.r.strlen(file_key) or 0
 
     def get_file_size_score(
         self,
@@ -128,7 +145,7 @@ class RedisController:
         if not encoded:
             filename = text_encode(filename)
 
-        return r.zscore(list_key, filename)
+        return self.r.zscore(list_key, filename)
 
     def has_file(self, **kwargs):
         """Return True if file exists in file list, otherwise, False."""
@@ -149,7 +166,7 @@ class RedisController:
         """
 
         key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
-        return r.incrby(key, amount)
+        return self.r.incrby(key, amount)
 
     def set_total_file_size(
         self,
@@ -169,10 +186,10 @@ class RedisController:
         size_key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
 
         total = 0
-        for _, size in r.zscan_iter(list_key, score_cast_func=int):
+        for _, size in self.r.zscan_iter(list_key, score_cast_func=int):
             total += size
 
-        r.set(size_key, total)
+        self.r.set(size_key, total)
         return total
 
     def append_file_list(
@@ -199,7 +216,7 @@ class RedisController:
         else:
             list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
 
-        r.zadd(list_key, {filename: size})
+        self.r.zadd(list_key, {filename: size})
 
     def get_file_list(
         self,
@@ -224,7 +241,7 @@ class RedisController:
             list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
             file_key_func = lambda hash: self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=hash)
 
-        data = r.zscan_iter(list_key, score_cast_func=int)
+        data = self.r.zscan_iter(list_key, score_cast_func=int)
         enc_file_names = [filename for filename, _ in data]  # remove score values
 
         if not check_content:
@@ -236,7 +253,7 @@ class RedisController:
             for enc_filename in enc_file_names:
                 # Although empty string can't be stored in Redis, check content length.
                 _hashed_name = get_hashed(enc_filename)
-                _size = r.strlen(file_key_func(_hashed_name))
+                _size = self.r.strlen(file_key_func(_hashed_name))
                 if _size <= 0:
                     cached = False
                     break
