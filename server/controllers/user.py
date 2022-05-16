@@ -10,8 +10,9 @@ class AuthController(BaseContoller):
     @staticmethod
     def verify_token(token: str) -> tuple[bool, dict]:
         """Verify the given JWT token by asking to API server. Return True if verified, otherwise, False"""
+
         if not token:
-            return False
+            return False, {"error": "Empty token is not allowed."}
 
         payload = {"token": token}
         resp = requests.post(API_URL + "/auth/token", json=payload, headers=API_HEADER)
@@ -21,6 +22,6 @@ class AuthController(BaseContoller):
             data = resp.json()
             success = resp.ok and data.get('valid') is True
         except json.JSONDecodeError:
-            data = {"data": "Unknown error"}
+            data = {"error": "Unknown error"}
 
         return success, data
