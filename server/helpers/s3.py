@@ -46,3 +46,9 @@ def is_exists(key: str, bucket: str | None = None):
         return True
     except ClientError:
         return False
+
+def delete_object(key: str, bucket: str| None = None):
+    if not bucket:
+        bucket = settings.S3_BUCKET
+
+    return _s3.delete_object(Bucket=bucket, Key=key)

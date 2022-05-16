@@ -178,3 +178,37 @@ async def file_update(sid: str, data: dict):
         )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid)
+
+
+@sio.on(WSEvent.FILE_DELETE)
+@requires(WSEvent.FILE_DELETE, ["ownerId", "type", "name"])
+async def file_delete(sid: str, data: dict):
+    """Delete file or directory
+
+    data: {
+        ownerId (int): owner user's participant ID
+        type: (str) "file" or "directory"
+        name (str): file or directory name to delete
+    }
+    """
+
+    owner_id = data.get("ownerId")
+    type_ = data.get("type")
+    name = data.get("name", "").strip("/")
+
+    try:
+        proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
+        proj_file_ctrl.delete_file_or_dir(owner_id, type_, name)
+
+        # FIXME: 해당 프로젝트 room 으로 전송
+        await sio.emit(
+            WSEvent.FILE_DELETE,
+            {
+                "ownerId": owner_id,
+                "type": type_,
+                "name": name,
+            },
+            to=sid,
+        )
+    except BaseException as e:
+        return await sio.emit(WSEvent.FILE_DELETE, ws_error_response(e.error), to=sid)

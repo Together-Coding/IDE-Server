@@ -101,9 +101,12 @@ class RedisController:
         self,
         filename: str,
         ptc_id: int,
-        hashed: bool = False,
+        encoded: bool,
     ):
         """Remove file content from Redis
+
+        1. Pop from file list
+        2. Remove file content
 
         Args:
             filename (str): filename to remove
@@ -111,10 +114,16 @@ class RedisController:
             hashed (bool, optional): whether the filename is hashed or encoded. Defaults to False.
         """
 
-        if not hashed:
-            filename = get_hashed(filename)
+        if encoded:
+            enc_filename = filename
+        else:
+            enc_filename = text_encode(filename)
 
-        file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        # Pop from file list
+        self.pop_file_list(filename=enc_filename, ptc_id=ptc_id, encoded=True)
+
+        # Remove file content
+        file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=get_hashed(enc_filename))
         self.r.delete(file_key)
 
     def _rename_file(
@@ -435,6 +444,14 @@ class S3Controller:
     ) -> bytes:
         obj = s3.get_object(object_key, bucket)
         return obj["Body"].read()
+
+    @staticmethod
+    def delete_s3_object(
+        object_key: str,
+        bucket: str | None = None
+    ):
+        """Delete S3 object containing file content"""
+        return s3.delete_object(object_key, bucket)
 
     def extract_to_redis(
         self,

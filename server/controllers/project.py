@@ -404,3 +404,44 @@ class ProjectFileController(LessonUserController):
             self.redis_ctrl.mark_as_directory(filename=filename, ptc_id=owner_id)
 
         # TODO: code_references 참조 위치 변경
+
+    def delete_file_or_dir(self, owner_id: int, type_: str, name: str):
+        """Delete file or directory
+
+        Args:
+            owner_id (int): owner user's participant ID
+            type_ (str): "file" or "directory"
+            name (str): file or directory name to delete
+        """
+
+        # 권한 확인
+        self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+
+        if type_ == "directory":
+            # 해당 디렉터리 내부 파일 모두 삭제
+            if not self.redis_ctrl.has_directory(dirname=name, ptc_id=owner_id):
+                raise FileAlreadyExistsException("존재하지 않는 폴더입니다.")
+
+            enc_filenames = self.redis_ctrl.get_file_list(ptc_id=owner_id, check_content=False)
+            for enc_filename in enc_filenames:
+                filename = text_decode(enc_filename)
+                if filename.startswith(name):
+                    self.redis_ctrl.delete_file(filename=enc_filename, ptc_id=owner_id, encoded=True)
+
+        else:  # file
+            # 해당 파일 삭제
+            if not self.redis_ctrl.has_file(filename=name, ptc_id=owner_id, encoded=False):
+                raise FileAlreadyExistsException("존재하지 않는 파일입니다.")
+
+            enc_filename = text_encode(name)
+
+            # If bulk file, make sure to delete it from S3
+            size = self.redis_ctrl.get_file_size_score(filename=name, ptc_id=owner_id, encoded=False)
+            if size > SIZE_LIMIT:
+                object_key = self.redis_ctrl.get_file(filename=enc_filename, ptc_id=owner_id, hashed=False)
+                self.s3_ctrl.delete_s3_object(object_key=object_key)
+
+            # Delete file key
+            self.redis_ctrl.delete_file(filename=enc_filename, ptc_id=owner_id, encoded=True)
+
+        # TODO: code_references 참조 수정
