@@ -212,8 +212,8 @@ class RedisController:
             dirname (str): directory name to search
             ptc_id (str): owner's participant ID
         """
-
-        dummy_file = os.path.join(dirname, self.redis_key.DUMMY_DIR_FILE)
+        # TODO: 템플릿 파일 저장 시에도 각 leaf directory 에 대해서 dummy file 추가하도록
+        dummy_file = os.path.join(dirname, self.redis_key.DUMMY_DIR_MARK)
         return self.has_file(filename=dummy_file, ptc_id=ptc_id, encoded=False)
 
     def increase_total_file_size(
@@ -349,6 +349,7 @@ class RedisController:
         filename: str,
         content: str,
         ptc_id: int,
+        mark_directory: bool = True,
     ):
         """Create new file
         1. Append new filename into file list
@@ -358,6 +359,7 @@ class RedisController:
             filename (str): filename to create
             content (str): file content
             ptc_id (int): owner participant's ID
+            mark_directory (bool): whether to mark file's directory as directory by adding dummy key. Defaults to True.
         """
 
         enc_filename = text_encode(filename)
@@ -367,6 +369,9 @@ class RedisController:
 
         self.append_file_list(filename=enc_filename, size=len(content), ptc_id=ptc_id, encoded=True)
         self.store_file(filename=enc_filename, content=content, ptc_id=ptc_id, hashed=False)
+
+        if mark_directory and filename != self.redis_key.DUMMY_DIR_MARK:
+            self.mark_as_directory(filename=filename, ptc_id=ptc_id)
 
     def rename_file(self, filename: str, new_filename: str, ptc_id: int):
         """Rename specific filename.
@@ -390,6 +395,27 @@ class RedisController:
 
             # Rename file content key
             pipe._rename_file(filename=enc_filename, new_filename=new_enc_filename, ptc_id=ptc_id, hashed=False)
+
+    def mark_as_directory(self, filename: str, ptc_id: int):
+        """Mark directory of filename as a directory by adding dummy file in the file list.
+        This method is called after file addition or filename modification.
+
+        Args:
+            filename (str): filename added or modified, whose directory is to be marked.
+            ptc_id (int): owner user's participant ID
+        """
+
+        try:
+            dir_mark = os.path.join(os.path.dirname(filename), self.redis_key.DUMMY_DIR_MARK)
+            self.create_file(
+                filename=dir_mark,
+                content=self.redis_key.DUMMY_DIR_MARK_CONTENT,
+                ptc_id=ptc_id,
+                mark_directory=False,
+            )
+        except FileAlreadyExistsException:
+            # Ignore if the mark already exists
+            pass
 
 
 class S3Controller:

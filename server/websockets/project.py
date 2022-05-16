@@ -151,6 +151,7 @@ async def file_update(sid: str, data: dict):
 
     data: {
         ownerId: (int) owner user's participant ID
+        type: (str) "file" or "directory"
         name: (str) file or directory name to change
         rename: (str) changed name
     }
@@ -169,6 +170,7 @@ async def file_update(sid: str, data: dict):
             WSEvent.FILE_UPDATE,
             {
                 "ownerId": owner_id,
+                "type": type_,
                 "name": name,
                 "rename": rename,
             },

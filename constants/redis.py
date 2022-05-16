@@ -25,4 +25,6 @@ class RedisKey(LessonKeyBase):
     # 유저별 파일 내용
     KEY_USER_FILE_CONTENT = "{ptc_id}:files:{hash}"  # STRING(binary): hash==hash(enc(filename))
 
-    DUMMY_DIR_FILE = "_"  # Dummy file to keep track of empty directory
+    DUMMY_DIR_MARK = "_"  # Dummy file to keep track of empty directory
+    DUMMY_DIR_MARK_CONTENT = " "  # Dummy content for dummy file
+    NEW_FILE_CONTENT = " "  # Prevent error from being raised due to setting empty string.

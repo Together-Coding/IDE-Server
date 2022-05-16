@@ -346,19 +346,20 @@ class ProjectFileController(LessonUserController):
 
         if type_ == "directory":
             dirname = name
-            filename = self.redis_ctrl.redis_key.DUMMY_DIR_FILE
+            filename = self.redis_ctrl.redis_key.DUMMY_DIR_MARK
+            content = self.redis_ctrl.redis_key.DUMMY_DIR_MARK_CONTENT
 
         if type_ == "file":
             dirname = ""
             filename = name
-
-        content = " "  # Prevent setting empty string error.
+            content = self.redis_ctrl.redis_key.NEW_FILE_CONTENT
 
         try:
             self.redis_ctrl.create_file(
                 filename=os.path.join(dirname, filename),
                 content=content,
                 ptc_id=target_ptc.id,
+                mark_directory=True,
             )
         except FileAlreadyExistsException as e:
             if type_ == "directory":
@@ -398,7 +399,8 @@ class ProjectFileController(LessonUserController):
 
             if self.redis_ctrl.has_file(filename=rename, ptc_id=owner_id, encoded=False):
                 raise FileAlreadyExistsException("같은 이름의 파일이 이미 존재합니다.")
-            
+
             self.redis_ctrl.rename_file(filename=name, new_filename=rename, ptc_id=owner_id)
-        
+            self.redis_ctrl.mark_as_directory(filename=filename, ptc_id=owner_id)
+
         # TODO: code_references 참조 위치 변경
