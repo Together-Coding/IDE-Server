@@ -113,7 +113,7 @@ class ProjectController(LessonUserController):
 
         return query.all()
 
-    def modify_project_permission(self, user_id: int, permission: int) -> None | ProjectViewer:
+    def modify_project_permission(self, target_id: int, permission: int) -> None | ProjectViewer:
         """Create/Modify users's ProjectViewer record.
 
         Args:
@@ -121,12 +121,16 @@ class ProjectController(LessonUserController):
             permission (int): READ: 4, WRITE: 2, EXEC: 1
         """
 
+        # 자신에 대한 권한은 추가하지 않음
+        if target_id == self.my_participant.id:
+            return
+
         permission = int(permission) & PROJ_PERM.ALL
 
         row = (
             self.db.query(ProjectViewer)
             .filter(ProjectViewer.project_id == self.my_project.id)
-            .filter(ProjectViewer.viewer_id == user_id)
+            .filter(ProjectViewer.viewer_id == target_id)
             .first()
         )
 
@@ -135,7 +139,7 @@ class ProjectController(LessonUserController):
             return None
 
         if not row:
-            row = ProjectViewer(project_id=self.my_project.id, viewer_id=user_id, permission=0)
+            row = ProjectViewer(project_id=self.my_project.id, viewer_id=target_id, permission=0)
 
         # 권한 변경, 저장
         diff_perm = row.permission ^ permission  # 1 on different bit

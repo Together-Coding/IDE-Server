@@ -109,7 +109,7 @@ async def file_read(sid: str, data: dict):
     }
     """
     owner_id = data.get("ownerId")
-    file = data.get("file")
+    file = data.get("file", "").strip("/")
 
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
