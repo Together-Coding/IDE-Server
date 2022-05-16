@@ -24,3 +24,5 @@ class RedisKey(LessonKeyBase):
     KEY_USER_FILE_LIST = "{ptc_id}:files"  # ZSET: enc(filename): size
     # 유저별 파일 내용
     KEY_USER_FILE_CONTENT = "{ptc_id}:files:{hash}"  # STRING(binary): hash==hash(enc(filename))
+
+    DUMMY_DIR_FILE = "_"  # Dummy file to keep track of empty directory

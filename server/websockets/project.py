@@ -133,11 +133,46 @@ async def file_create(sid: str, data: dict):
 
     owner_id = data.get("ownerId")
     type_ = data.get("type")
-    name = data.get("name")
+    name = data.get("name", "").strip("/")
 
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         proj_file_ctrl.create_file_or_dir(owner_id, type_, name)
+        # FIXME: 해당 프로젝트 room 으로 전송
         await sio.emit(WSEvent.FILE_CREATE, {"type": type_, "name": name}, to=sid)
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid)
+
+
+@sio.on(WSEvent.FILE_UPDATE)
+@requires(WSEvent.FILE_UPDATE, ["ownerId", "type", "name", "rename"])
+async def file_update(sid: str, data: dict):
+    """Update file or directory name
+
+    data: {
+        ownerId: (int) owner user's participant ID
+        name: (str) file or directory name to change
+        rename: (str) changed name
+    }
+    """
+
+    owner_id = data.get("ownerId")
+    type_ = data.get("type")
+    name = data.get("name", "").strip("/")
+    rename = data.get("rename", "").strip("/")
+
+    try:
+        proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
+        proj_file_ctrl.update_file_or_dir_name(owner_id, type_, name, rename)
+        # FIXME: 해당 프로젝트 room 으로 전송
+        await sio.emit(
+            WSEvent.FILE_UPDATE,
+            {
+                "ownerId": owner_id,
+                "name": name,
+                "rename": rename,
+            },
+            to=sid,
+        )
+    except BaseException as e:
+        return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid)

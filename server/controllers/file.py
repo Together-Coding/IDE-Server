@@ -97,6 +97,54 @@ class RedisController:
 
         return self.r.get(file_key)
 
+    def delete_file(
+        self,
+        filename: str,
+        ptc_id: int,
+        hashed: bool = False,
+    ):
+        """Remove file content from Redis
+
+        Args:
+            filename (str): filename to remove
+            ptc_id (int): owner partipant ID.
+            hashed (bool, optional): whether the filename is hashed or encoded. Defaults to False.
+        """
+
+        if not hashed:
+            filename = get_hashed(filename)
+
+        file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        self.r.delete(file_key)
+
+    def _rename_file(
+        self,
+        filename: str,
+        new_filename: str,
+        ptc_id: int,
+        hashed: bool = False,
+    ) -> bool:
+        """Rename file content key
+
+        Args:
+            filename (str): filename to rename
+            new_filename (str): new filename
+            ptc_id (int): owner's participant ID
+            hashed (bool, optional): whether the filename is hashed or encoded. Defaults to False.
+
+        Returns:
+            bool: renamed or not (because hte name already exists)
+        """
+
+        if not hashed:
+            filename = get_hashed(filename)
+            new_filename = get_hashed(new_filename)
+
+        file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=filename)
+        new_file_key = self.redis_key.KEY_USER_FILE_CONTENT.format(ptc_id=ptc_id, hash=new_filename)
+
+        return bool(self.r.renamenx(file_key, new_file_key))
+
     def get_file_size_len(
         self,
         filename: str,
@@ -152,6 +200,21 @@ class RedisController:
         size = self.get_file_size_score(**kwargs)
 
         return False if size is None else True
+
+    def has_directory(
+        self,
+        dirname: str,
+        ptc_id: str,
+    ):
+        """Return True if the directory name exists in file list, otherwise, False.
+
+        Args:
+            dirname (str): directory name to search
+            ptc_id (str): owner's participant ID
+        """
+
+        dummy_file = os.path.join(dirname, self.redis_key.DUMMY_DIR_FILE)
+        return self.has_file(filename=dummy_file, ptc_id=ptc_id, encoded=False)
 
     def increase_total_file_size(
         self,
@@ -218,6 +281,27 @@ class RedisController:
 
         self.r.zadd(list_key, {filename: size})
 
+    def pop_file_list(
+        self,
+        filename: str,
+        ptc_id: int,
+        encoded: bool = False,
+    ):
+        """Pop filename from file list.
+
+        Args:
+            filename (str): filename to add
+            ptc_id (int): owner participant's ID. Defaults to None.
+            encoded (bool, optional): whether the filename is encoded or plaintext. Defaults to False.
+        """
+
+        if not encoded:
+            filename = text_encode(filename)
+
+        list_key = self.redis_key.KEY_USER_FILE_LIST.format(ptc_id=ptc_id)
+
+        self.r.zrem(list_key, filename)
+
     def get_file_list(
         self,
         ptc_id: int | None = None,
@@ -283,6 +367,29 @@ class RedisController:
 
         self.append_file_list(filename=enc_filename, size=len(content), ptc_id=ptc_id, encoded=True)
         self.store_file(filename=enc_filename, content=content, ptc_id=ptc_id, hashed=False)
+
+    def rename_file(self, filename: str, new_filename: str, ptc_id: int):
+        """Rename specific filename.
+
+        1. Add new filename into file list
+        2. Remove previous one from file list
+        3. Rename previous file content key to new one
+        """
+
+        enc_filename = text_encode(filename)
+        new_enc_filename = text_encode(new_filename)
+
+        prev_size = self.get_file_size_score(filename=enc_filename, ptc_id=ptc_id, encoded=True)
+
+        with RedisController(redis_key=self.redis_key, r_=self.r.pipeline()) as pipe:
+            # Add new filename into file list
+            pipe.append_file_list(filename=new_enc_filename, size=prev_size, ptc_id=ptc_id, encoded=True)
+
+            # Remove previous one from file list
+            pipe.pop_file_list(filename=enc_filename, ptc_id=ptc_id, encoded=True)
+
+            # Rename file content key
+            pipe._rename_file(filename=enc_filename, new_filename=new_enc_filename, ptc_id=ptc_id, hashed=False)
 
 
 class S3Controller:

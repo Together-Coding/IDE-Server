@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 from sqlalchemy.orm import joinedload
+from configs import settings
 
 from constants.redis import SIZE_LIMIT
 from constants.s3 import S3Key
@@ -11,7 +12,7 @@ from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.etc import get_hashed, text_encode
+from server.utils.etc import get_hashed, text_decode, text_encode
 from server.utils.exceptions import (
     FileAlreadyExistsException,
     ForbiddenProjectException,
@@ -341,7 +342,7 @@ class ProjectFileController(LessonUserController):
 
         if type_ == "directory":
             dirname = name
-            filename = "_"
+            filename = self.redis_ctrl.redis_key.DUMMY_DIR_FILE
 
         if type_ == "file":
             dirname = ""
@@ -359,3 +360,41 @@ class ProjectFileController(LessonUserController):
             if type_ == "directory":
                 e.error = "이미 존재하는 폴더입니다."
             raise e
+
+    def update_file_or_dir_name(self, owner_id: int, type_: str, name: str, rename: str):
+        """Update name of file or directory at the owner's project.
+
+        Args:
+            owner_id (int): owner ID of the file/directory
+            name (str): file or directory name to change
+            rename (str): changed name
+        """
+
+        # 권한 확인
+        self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+
+        if type_ == "directory":
+            # 디렉터리 내부 파일명 모두 변경
+            if not self.redis_ctrl.has_directory(dirname=name, ptc_id=owner_id):
+                raise FileAlreadyExistsException("존재하지 않는 폴더입니다.")
+
+            if self.redis_ctrl.has_directory(dirname=rename, ptc_id=owner_id):
+                raise FileAlreadyExistsException("같은 이름의 폴더가 이미 존재합니다.")
+
+            enc_filenames = self.redis_ctrl.get_file_list(ptc_id=owner_id, check_content=False)
+            for enc_filename in enc_filenames:
+                filename = text_decode(enc_filename)
+                if filename.startswith(name):
+                    new_filename = filename.replace(name, rename, 1)
+                    self.redis_ctrl.rename_file(filename=filename, new_filename=new_filename, ptc_id=owner_id)
+        else:
+            # 해당 파일명 변경
+            if not self.redis_ctrl.has_file(filename=name, ptc_id=owner_id, encoded=False):
+                raise FileAlreadyExistsException("존재하지 않는 파일입니다.")
+
+            if self.redis_ctrl.has_file(filename=rename, ptc_id=owner_id, encoded=False):
+                raise FileAlreadyExistsException("같은 이름의 파일이 이미 존재합니다.")
+            
+            self.redis_ctrl.rename_file(filename=name, new_filename=rename, ptc_id=owner_id)
+        
+        # TODO: code_references 참조 위치 변경
