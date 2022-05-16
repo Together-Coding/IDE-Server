@@ -4,17 +4,28 @@ from sqlalchemy.orm import sessionmaker
 
 from configs import settings
 
-print(settings.SQLALCHEMY_DATABASE_URL)
 engine = create_engine(settings.SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+
+class DefaultBase(object):
+    def __repr__(self):
+        try:
+            return f'{type(self).__name__} id={getattr(self, "id")}'
+        except AttributeError:
+            return f'{type(self).__name__}'
 
 
-def get_db():
+Base = declarative_base(cls=DefaultBase)
+
+
+def get_db_dep():
     """Dependency"""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+def get_db():
+    return next(get_db_dep())

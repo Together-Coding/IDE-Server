@@ -1,16 +1,5 @@
-from enum import Enum
-from re import L
-from sqlalchemy import (
-    DATETIME,
-    TEXT,
-    Boolean,
-    Column,
-    ForeignKey,
-    Integer,
-    PrimaryKeyConstraint,
-    String,
-    UniqueConstraint,
-)
+from __future__ import annotations
+from sqlalchemy import DATETIME, Boolean, Column, ForeignKey, Integer, PrimaryKeyConstraint, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from server.helpers.db import Base
@@ -30,8 +19,8 @@ class Course(Base):
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     updated_at = Column(DATETIME, nullable=True, onupdate=utc_dt_now)
 
-    participants = relationship("Participant")
-    lessons = relationship("Lesson")
+    participants: list[Participant] = relationship("Participant")
+    lessons: list[Lesson] = relationship("Lesson")
 
 
 class Participant(Base):
@@ -45,9 +34,19 @@ class Participant(Base):
     nickname = Column(String(60), nullable=False, default="")
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    course = relationship("Course", back_populates="participants")
-    user = relationship("User", back_populates="participation")
-    project = relationship("UserProject")
+    course: Course = relationship("Course", back_populates="participants", uselist=False)
+    user = relationship("User", back_populates="participation", uselist=False)
+    project: UserProject = relationship("UserProject", uselist=False)
+
+    KEY_TEACHER = "teacher"
+    KEY_STUDENT = "student"
+
+    @property
+    def is_teacher(self):
+        return self.role == self.KEY_TEACHER
+
+    def __repr__(self):
+        return f"{type(self).__name__} id={self.id} nickname={self.nickname} ({self.role})"
 
 
 class Lesson(Base):
@@ -62,16 +61,16 @@ class Lesson(Base):
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    course = relationship("Course", back_populates="lessons")
-    file = relationship("LessonFile", uselist=False)
-    projects = relationship("UserProject")
+    course: Course = relationship("Course", back_populates="lessons", uselist=False)
+    file: LessonFile = relationship("LessonFile", uselist=False)
+    projects: list[UserProject] = relationship("UserProject")
 
 
 class LessonFile(Base):
     __tablename__ = "files"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    url = Column(String(2048), nullable=False)
+    url = Column(String(2048), nullable=False)  # S3 Object key
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
 
@@ -85,9 +84,9 @@ class UserProject(Base):
     active = Column(Boolean, nullable=False, default=0)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    lesson = relationship("Lesson", back_populates="projects")
-    participant = relationship("Participant", back_populates="project", uselist=False)
-    viewers = relationship("ProjectViewer")
+    lesson: Lesson = relationship("Lesson", back_populates="projects", uselist=False)
+    participant: Participant = relationship("Participant", back_populates="project", uselist=False)
+    viewers: list[ProjectViewer] = relationship("ProjectViewer")
     code_references = relationship("CodeReference")
 
 
@@ -95,6 +94,7 @@ class PROJ_PERM:
     READ: int = 0b_0000_0100
     WRITE: int = 0b_0000_0010
     EXEC: int = 0b_0000_0001
+    ALL: int = 0b_0000_0111
 
 
 class ProjectViewer(Base):
@@ -104,3 +104,25 @@ class ProjectViewer(Base):
     project_id = Column(Integer, ForeignKey("user_projects.id"), nullable=False)
     viewer_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     permission = Column(Integer, nullable=False, default=PROJ_PERM.READ)
+
+    # Temporary values for the cases when the permission is changed.
+    added = 0
+    removed = 0
+
+    def __repr__(self):
+        return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
+
+    def has_perm(self, need_perm: PROJ_PERM):
+        return self.permission & need_perm
+
+    @property
+    def read_allowed(self):
+        return self.permission & PROJ_PERM.READ
+
+    @property
+    def write_allowed(self):
+        return self.permission & PROJ_PERM.WRITE
+
+    @property
+    def exec_allowed(self):
+        return self.permission & PROJ_PERM.EXEC
