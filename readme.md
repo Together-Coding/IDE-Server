@@ -16,7 +16,7 @@
 - Connect to Redis
     `$ redis-cli`
 - Start server
-    1. `$ export $(cat .env | grep -v "#" | xargs)`
-    1. `$ DEBUG=true uvicorn app:app --port 8001 --reload`
+    1. Configure `.env` file.
+    1. `$ uvicorn app:app --port 8001 --reload`
 - Test
     `$ make test`
