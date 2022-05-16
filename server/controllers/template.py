@@ -26,7 +26,7 @@ class LessonTemplateController(LessonBaseController):
             return
 
         # Redis 에서 템플릿 정보 가져오기
-        enc_filenames = list(self.redis_ctrl.get_file_list(check_content=True))
+        enc_filenames = self.redis_ctrl.get_file_list(check_content=True)
 
         # Redis 에 정보가 존재하지 않는 경우, S3 에서 다운로드 & 저장
         if not enc_filenames:
@@ -45,7 +45,7 @@ class LessonTemplateController(LessonBaseController):
             _name, _ext = os.path.splitext(enc_filename)
             dup_idx = 0
             while dup_idx < 100:  # Set max retry
-                if bool(self.redis_ctrl.get_file_size_score(enc_filename, ptc_id=ptc.id, encoded=False)):
+                if self.redis_ctrl.has_file(filename=enc_filename, ptc_id=ptc.id, encoded=False):
                     enc_filename = f"{_name}_{dup_idx}.{_ext}"
                     dup_idx += 1
                 else:

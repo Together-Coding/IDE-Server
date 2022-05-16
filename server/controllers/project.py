@@ -345,18 +345,16 @@ class ProjectFileController(LessonUserController):
         target_ptc, _ = self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
 
         if type_ == "directory":
-            dirname = name
-            filename = self.redis_ctrl.redis_key.DUMMY_DIR_MARK
+            filename = os.path.join(name, self.redis_ctrl.redis_key.DUMMY_DIR_MARK)
             content = self.redis_ctrl.redis_key.DUMMY_DIR_MARK_CONTENT
 
         if type_ == "file":
-            dirname = ""
             filename = name
             content = self.redis_ctrl.redis_key.NEW_FILE_CONTENT
 
         try:
             self.redis_ctrl.create_file(
-                filename=os.path.join(dirname, filename),
+                filename=filename,
                 content=content,
                 ptc_id=target_ptc.id,
                 mark_directory=True,

@@ -85,11 +85,12 @@ async def get_dir_info(sid: str, data: dict | None = None):
         targetId: (int) target user's participant ID
     }
     """
-    target_ptc_id = data.get("targetId")
+    target_id = data.get("targetId")
 
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
-        files = proj_file_ctrl.get_dir_info(target_ptc_id)
+        files = proj_file_ctrl.get_dir_info(target_id)
+
         await sio.emit(WSEvent.DIR_INFO, {"file": files}, to=sid)
     except BaseException as e:
         return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)

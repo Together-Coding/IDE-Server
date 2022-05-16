@@ -541,7 +541,7 @@ class S3Controller:
 
                         # If no content, add one space to store it in Redis
                         if size <= 0:
-                            content = b" "
+                            content = self.redis_key.NEW_FILE_CONTENT
 
                         if size <= SIZE_LIMIT:
                             r.set(name=_r_file_key, value=content, ex=ttl, nx=not overwrite)
