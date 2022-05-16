@@ -12,7 +12,7 @@ def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -
         perm (ProjectViewer): 유저의 타 유저 프로젝트 접근 권한
 
     Returns:
-        _type_: _description_
+        dict[str, Any]: serialized dict
     """
 
     return {
@@ -25,12 +25,15 @@ def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -
     }
 
 
-def permission_modified(target_id: int, perm: ProjectViewer):
+def permission_modified(target_id: int, perm: ProjectViewer) -> dict[str, Any]:
     """변경된 접근 권한에 대한 데이터를 serialize
 
     Args:
         target_id (int): 변경을 요청한 유저의 Participant ID
         perm (ProjectViewer): 타 유저 프로젝트 접근 권한
+
+    Returns:
+        dict[str, Any]: serialized dict
     """
 
     return {

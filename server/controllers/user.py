@@ -9,7 +9,7 @@ from server.controllers.base import BaseContoller
 class AuthController(BaseContoller):
     @staticmethod
     def verify_token(token: str) -> tuple[bool, dict]:
-        """Verify the given JWT token by asking to API server. Return True if verified, otherwise, False"""
+        """Verify the given JWT token by asking API server. Return True if verified, otherwise, False"""
 
         if not token:
             return False, {"error": "Empty token is not allowed."}

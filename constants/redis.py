@@ -5,7 +5,8 @@ SIZE_LIMIT = 134_217_728  # bytes == 128 MB
 
 class RedisKey(LessonKeyBase):
     """
-    Some keys are encoded by `server.utils.etc.text_encode`
+    Some keys are encoded by `server.utils.etc.text_encode`,
+    and some of them are also hashed by `server.utils.etc.get_hashed` after encoded.
     """
 
     PREFIX = "crs:{course_id}:{lesson_id}:"
@@ -13,7 +14,7 @@ class RedisKey(LessonKeyBase):
     # 템플릿 파일명 리스트
     KEY_TEMPLATE_FILE_LIST = "template:files"  # ZSET: enc(filename): size
     # 템플릿 파일 내용
-    KEY_TEMPLATE_FILE_CONTENT = "template:files:{hash}"  # STRING(binary): hash==hash(enc(filename))
+    KEY_TEMPLATE_FILE_CONTENT = "template:files:{hash}"  # STRING(binary): hash(enc(filename)): content
 
     # 유저별 총 파일 사이즈
     KEY_USER_CUR_SIZE = "{ptc_id}:size"  # STRING (number)
@@ -23,7 +24,7 @@ class RedisKey(LessonKeyBase):
     # 유저별 파일명 리스트
     KEY_USER_FILE_LIST = "{ptc_id}:files"  # ZSET: enc(filename): size
     # 유저별 파일 내용
-    KEY_USER_FILE_CONTENT = "{ptc_id}:files:{hash}"  # STRING(binary): hash==hash(enc(filename))
+    KEY_USER_FILE_CONTENT = "{ptc_id}:files:{hash}"  # STRING(binary): hash(enc(filename)): content
 
     DUMMY_DIR_MARK = "_"  # Dummy file to keep track of empty directory
     DUMMY_DIR_MARK_CONTENT = " "  # Dummy content for dummy file

@@ -17,5 +17,5 @@ class WSEvent:
 
 
 class Room:
-    PERSONAL_PTC = "ptc-{ptc_id}"
+    PERSONAL_PTC = "ptc-{ptc_id}"  # Used to retrieve session id from participant id
     LESSON = "{course_id}:{lesson_id}"

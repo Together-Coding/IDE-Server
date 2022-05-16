@@ -184,13 +184,17 @@ class RedisController:
         filename: str,
         ptc_id: int | None = None,
         encoded=False,
-    ) -> int | float:
+    ) -> int | float | None:
         """Return score of ``list_key:filename``.
 
         Args:
             filename (str): target filename
             ptc_id (int | None, Optional): owner's participant ID. Defaults to None
             encoded (bool, optional): whether filename is encoded or plaintext. Defaults to False.
+
+        Returns:
+            int | float: file size when the key exists.
+            None: when not exists
         """
 
         if ptc_id:
@@ -448,7 +452,7 @@ class S3Controller:
     @staticmethod
     def delete_s3_object(
         object_key: str,
-        bucket: str | None = None
+        bucket: str | None = None,
     ):
         """Delete S3 object containing file content"""
         return s3.delete_object(object_key, bucket)

@@ -2,7 +2,7 @@ from constants.base import LessonKeyBase
 
 
 class S3Key(LessonKeyBase):
-    PREFIX = "/course/{course_id}/{lesson_id}"
+    PREFIX = "course/{course_id}/{lesson_id}"  # Leading '/' is not allowed as a key.
 
     # 수업 템플릿 ZIP 파일
     KEY_LESSON_TEMPLATE = "/template.zip"

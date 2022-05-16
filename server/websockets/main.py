@@ -1,5 +1,5 @@
 import functools
-from typing import Awaitable
+from typing import Any, Awaitable
 
 from socketio.exceptions import ConnectionRefusedError
 
@@ -9,7 +9,8 @@ from server.utils.response import ws_error_response
 from server.websockets import session as ws_session
 
 
-def requires(event, names: list):
+
+def requires(event: str, names: list):
     def decorator(f: Awaitable):
         @functools.wraps(f)
         async def decorated(sid: str, data: dict, *args, **kwargs):
@@ -31,13 +32,12 @@ def requires(event, names: list):
 
 
 @sio.event
-async def connect(sid, environ, auth):
-    """웹소켓 연결 요청을 수신하였을 떄, 토큰 인증을 통과한 경우에 연결한다."""
+async def connect(sid: str, environ: dict, auth: dict[str, Any]):
+    """웹소켓 연결 요청을 수신하였을 때, 토큰 인증을 실패한 경우에는 거절한다."""
 
     # Parse token from auth header
     token = ""
     for k, v in auth.items():
-        k: str
         if k.lower() == "authorization":
             idx = v.lower().find("bearer")
             if idx != -1:
@@ -59,10 +59,10 @@ async def connect(sid, environ, auth):
 
 
 @sio.event
-async def disconnect(sid):
+async def disconnect(sid: str):
     print("disconnect:", sid)
 
 
 @sio.on("echo")
-async def ws_echo(sid, data=None):
+async def ws_echo(sid: str, data: Any = None):
     await sio.emit("message", f"{data}", to=sid)

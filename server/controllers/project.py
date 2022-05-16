@@ -114,10 +114,10 @@ class ProjectController(LessonUserController):
         return query.all()
 
     def modify_project_permission(self, target_id: int, permission: int) -> None | ProjectViewer:
-        """Create/Modify users's ProjectViewer record.
+        """Create/Modify user's ProjectViewer record.
 
         Args:
-            user_id (int): 권한을 수정할 상대 유저 ID
+            target_id (int): 권한을 수정할 상대 유저 ID
             permission (int): READ: 4, WRITE: 2, EXEC: 1
         """
 
@@ -238,7 +238,7 @@ class ProjectFileController(LessonUserController):
         if not target_ptc:
             raise ParticipantNotFoundException("존재하지 않는 유저입니다.")
         elif not target_proj:
-            raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
+            raise ProjectNotFoundException("아직 강의에 참여하지 않은 유저입니다.")
 
         # 권한 확인
         if check_perm:
@@ -277,7 +277,7 @@ class ProjectFileController(LessonUserController):
                 tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
                 tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
             else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
-                raise ProjectNotFoundException("현재 강의에 참여하지 않은 유저입니다.")
+                raise ProjectNotFoundException("아직 강의에 참여하지 않은 유저입니다.")
         else:  # UserProject 가 있는 경우
             # Redis 에 캐시되어 있는지 확인
             project_files = self._get_project_cached(target_ptc)

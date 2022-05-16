@@ -8,15 +8,15 @@ from configs import settings
 _s3 = boto3.client("s3", region_name="ap-northeast-2")
 
 
-def _refine_key(key: str):
-    """Refine S3 object key; as the leading slash(/) is treated as filename, 
+def _refine_key(key: str) -> str:
+    """Refine S3 object key; as the leading slash(/) is treated as filename,
     it should be removed.
 
     Args:
-        key (str): _description_
+        key (str): S3 object key
 
     Returns:
-        _type_: _description_
+        str: Refined S3 object key
     """
 
     return key.strip("/")
@@ -47,7 +47,8 @@ def is_exists(key: str, bucket: str | None = None):
     except ClientError:
         return False
 
-def delete_object(key: str, bucket: str| None = None):
+
+def delete_object(key: str, bucket: str | None = None):
     if not bucket:
         bucket = settings.S3_BUCKET
 

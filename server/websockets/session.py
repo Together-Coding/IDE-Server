@@ -4,16 +4,16 @@ from constants.ws import Room
 from server import sio
 
 
-def is_connected(sid, namespaces: str = None):
+def is_connected(sid: str, namespaces: str | None = None):
     return sio.manager.is_connected(sid, namespaces)
 
 
-async def get(sid: str, key: str, namespaces: str = None) -> Any:
+async def get(sid: str, key: str, namespaces: str | None = None) -> Any:
     s = await sio.get_session(sid, namespaces)
     return s.get(key)
 
 
-async def update(sid: str, data: dict, namespaces: str = None) -> dict:
+async def update(sid: str, data: dict, namespaces: str | None = None) -> dict:
     """Update sio session"""
 
     async with sio.session(sid, namespaces) as s:
@@ -21,7 +21,7 @@ async def update(sid: str, data: dict, namespaces: str = None) -> dict:
         return s
 
 
-async def clear(sid: str, exc: list[str] | None = None, namespaces: str = None) -> None:
+async def clear(sid: str, exc: list[str] | None = None, namespaces: str | None = None) -> None:
     """Clear sio session except ``exc`` keys"""
 
     async with sio.session(sid, namespaces) as s:
@@ -46,7 +46,7 @@ def enter_ptc_id_room(sid: str, ptc_id: int):
     sio.enter_room(sid, Room.PERSONAL_PTC.format(ptc_id=ptc_id))
 
 
-async def enter_room(sid: str, room_type: str, new_room: str, limit=None):
+async def enter_room(sid: str, room_type: str, new_room: str, limit: int | None = None):
     """``room_type``별 최대 limit 개의 room 에 접속한다."""
 
     # 기존에 접속한 room 을 가져온다.
