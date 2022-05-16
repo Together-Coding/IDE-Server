@@ -116,4 +116,28 @@ async def file_read(sid: str, data: dict):
         content = proj_file_ctrl.get_file_content(owner_id, file)
         await sio.emit(WSEvent.FILE_READ, {"ownerId": owner_id, "file": file, "content": content}, to=sid)
     except BaseException as e:
-        return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.FILE_READ, ws_error_response(e.error), to=sid)
+
+
+@sio.on(WSEvent.FILE_CREATE)
+@requires(WSEvent.FILE_CREATE, ["ownerId", "type", "name"])
+async def file_create(sid: str, data: dict):
+    """Create file or directory
+
+    data: {
+        ownerId: (int) owner user's participant ID
+        type: (str) "file" or "directory"
+        name: (str) file or directory name to create
+    }
+    """
+
+    owner_id = data.get("ownerId")
+    type_ = data.get("type")
+    name = data.get("name")
+
+    try:
+        proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
+        proj_file_ctrl.create_file_or_dir(owner_id, type_, name)
+        await sio.emit(WSEvent.FILE_CREATE, {"type": type_, "name": name}, to=sid)
+    except BaseException as e:
+        return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid)

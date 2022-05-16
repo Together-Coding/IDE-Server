@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from sqlalchemy.orm import joinedload
 
 from constants.redis import SIZE_LIMIT
@@ -11,6 +13,7 @@ from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 from server.utils.etc import get_hashed, text_encode
 from server.utils.exceptions import (
+    FileAlreadyExistsException,
     ForbiddenProjectException,
     ParticipantNotFoundException,
     ProjectFileException,
@@ -324,3 +327,35 @@ class ProjectFileController(LessonUserController):
             # AWS S3 에서 bulk file 다운로드, 반환
             s3_object_key = self.redis_ctrl.get_file(filename=enc_filename, ptc_id=target_ptc.id, hashed=False)
             return self.s3_ctrl.get_s3_object_content(s3_object_key).decode()
+
+    def create_file_or_dir(self, owner_id: int, type_: str, name: str):
+        """Create file or directory at the owner's project.
+
+        Args:
+            owner_id (int): owner ID of the new file/directory
+            type_ (str): "file" or "directory"
+            name (str): name of the file/directory
+        """
+
+        target_ptc, _ = self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+
+        if type_ == "directory":
+            dirname = name
+            filename = "_"
+
+        if type_ == "file":
+            dirname = ""
+            filename = name
+
+        content = " "  # Prevent setting empty string error.
+
+        try:
+            self.redis_ctrl.create_file(
+                filename=os.path.join(dirname, filename),
+                content=content,
+                ptc_id=target_ptc.id,
+            )
+        except FileAlreadyExistsException as e:
+            if type_ == "directory":
+                e.error = "이미 존재하는 폴더입니다."
+            raise e

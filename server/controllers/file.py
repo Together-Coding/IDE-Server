@@ -10,7 +10,7 @@ from constants.s3 import S3Key
 from server.helpers import s3, sentry
 from server.helpers.redis_ import r
 from server.utils.etc import get_hashed, text_encode
-from server.utils.exceptions import ProjectFileException
+from server.utils.exceptions import FileAlreadyExistsException, ProjectFileException
 
 
 class RedisController:
@@ -130,6 +130,12 @@ class RedisController:
 
         return r.zscore(list_key, filename)
 
+    def has_file(self, **kwargs):
+        """Return True if file exists in file list, otherwise, False."""
+        size = self.get_file_size_score(**kwargs)
+
+        return False if size is None else True
+
     def increase_total_file_size(
         self,
         amount: int,
@@ -236,6 +242,30 @@ class RedisController:
                     break
 
         return enc_file_names if cached else []
+
+    def create_file(
+        self,
+        filename: str,
+        content: str,
+        ptc_id: int,
+    ):
+        """Create new file
+        1. Append new filename into file list
+        2. Add file content
+
+        Args:
+            filename (str): filename to create
+            content (str): file content
+            ptc_id (int): owner participant's ID
+        """
+
+        enc_filename = text_encode(filename)
+
+        if self.has_file(filename=enc_filename, ptc_id=ptc_id, encoded=True):
+            raise FileAlreadyExistsException("이미 존재하는 파일입니다.")
+
+        self.append_file_list(filename=enc_filename, size=len(content), ptc_id=ptc_id, encoded=True)
+        self.store_file(filename=enc_filename, content=content, ptc_id=ptc_id, hashed=False)
 
 
 class S3Controller:

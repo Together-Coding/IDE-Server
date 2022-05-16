@@ -1,6 +1,3 @@
-from server.helpers.db import Base
-
-
 class BaseException(Exception):
     def __init__(self, error: str):
         self.error = error
@@ -23,4 +20,12 @@ class ProjectNotFoundException(BaseException):
 
 
 class ForbiddenProjectException(BaseException):
+    pass
+
+
+class FileCRUDException(BaseException):
+    pass
+
+
+class FileAlreadyExistsException(FileCRUDException):
     pass
