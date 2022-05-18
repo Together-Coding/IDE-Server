@@ -8,9 +8,11 @@ from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
 from server.websockets.main import requires
+from server.websockets.course import in_lesson
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
+@in_lesson
 async def ping(sid: str, data=None):
     """Listen ping to update UserProject.recent_activity_at"""
 
@@ -21,6 +23,7 @@ async def ping(sid: str, data=None):
 
 
 @sio.on(WSEvent.PROJECT_ACCESSIBLE)
+@in_lesson
 async def project_accessible(sid: str, data=None):
     """
     1. 내가 접근 가능한 프로젝트들의 소유자
@@ -40,6 +43,7 @@ async def project_accessible(sid: str, data=None):
 
 
 @sio.on(WSEvent.PROJECT_PERM)
+@in_lesson
 async def modify_project_permission(sid: str, data=None):
     """나의 프로젝트에 대한 각 유저의 권한 변경
 
@@ -78,6 +82,7 @@ async def modify_project_permission(sid: str, data=None):
 
 @sio.on(WSEvent.DIR_INFO)
 @requires(WSEvent.DIR_INFO, ["targetId"])
+@in_lesson
 async def get_dir_info(sid: str, data: dict | None = None):
     """``targetId` 에 해당하는 Participant 의 directory, file 리스트를 반환한다.
 
@@ -101,6 +106,7 @@ async def get_dir_info(sid: str, data: dict | None = None):
 
 @sio.on(WSEvent.FILE_READ)
 @requires(WSEvent.FILE_READ, ["ownerId", "file"])
+@in_lesson
 async def file_read(sid: str, data: dict):
     """Return file content of the owner
 
@@ -122,6 +128,7 @@ async def file_read(sid: str, data: dict):
 
 @sio.on(WSEvent.FILE_CREATE)
 @requires(WSEvent.FILE_CREATE, ["ownerId", "type", "name"])
+@in_lesson
 async def file_create(sid: str, data: dict):
     """Create file or directory
 
@@ -147,6 +154,7 @@ async def file_create(sid: str, data: dict):
 
 @sio.on(WSEvent.FILE_UPDATE)
 @requires(WSEvent.FILE_UPDATE, ["ownerId", "type", "name", "rename"])
+@in_lesson
 async def file_update(sid: str, data: dict):
     """Update file or directory name
 
@@ -183,6 +191,7 @@ async def file_update(sid: str, data: dict):
 
 @sio.on(WSEvent.FILE_DELETE)
 @requires(WSEvent.FILE_DELETE, ["ownerId", "type", "name"])
+@in_lesson
 async def file_delete(sid: str, data: dict):
     """Delete file or directory
 
