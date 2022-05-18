@@ -27,6 +27,12 @@ async def init_lesson(sid: str, data: dict):
     ws_session.enter_ptc_id_room(sid, proj_ctrl.my_participant.id)
 
     # Participant ID 저장
-    await ws_session.update(sid, {"participant_id": proj_ctrl.my_participant.id})
+    await ws_session.update(
+        sid,
+        {
+            "participant_id": proj_ctrl.my_participant.id,
+            "nickname": proj_ctrl.my_participant.nickname,
+        },
+    )
 
     await sio.emit(WSEvent.INIT_LESSON, data={"success": True}, to=sid)
