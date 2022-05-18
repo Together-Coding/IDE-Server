@@ -1,32 +1,9 @@
-import functools
-from typing import Awaitable
 from constants.ws import Room, WSEvent
 from server import sio
 from server.controllers.project import ProjectController
 from server.helpers.db import get_db
-from server.utils.response import ws_error_response
 from server.websockets import session as ws_session
-from server.websockets.main import requires
-
-
-def in_lesson(f: Awaitable):
-    """
-    Users must initialize a lesson first by INIT_LESSON event.
-    If uninitialized user requests the decorated event handler, do not execute
-    the handler and respond with error reason.
-    """
-
-    async def decorated(sid: str, *args, **kwargs):
-        course_id: int = await ws_session.get(sid, "course_id")
-        lesson_id: int = await ws_session.get(sid, "lesson_id")
-
-        if not course_id or not lesson_id:
-            msg = "수업에 접속한 상태가 아닙니다. `INIT_LESSON` 이벤트를 전송해주세요."
-            return await sio.emit(WSEvent.ERROR, ws_error_response(msg), to=sid)
-
-        return await f(sid, *args, **kwargs)
-
-    return decorated
+from server.websockets.decorators import requires
 
 
 @sio.on(WSEvent.INIT_LESSON)
