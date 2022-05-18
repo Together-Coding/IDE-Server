@@ -1,5 +1,8 @@
 class WSEvent:
-    # Initial and common
+    # Common
+    ERROR = "ERROR"
+
+    # Initial
     INIT_LESSON = "INIT_LESSON"
     ACTIVITY_PING = "ACTIVITY_PING"
 
