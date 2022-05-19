@@ -430,6 +430,47 @@ class RedisController:
             # Ignore if the mark already exists
             pass
 
+    def get_last_cursor(
+        self,
+        ptc_id: int,
+        owner_id: int,
+        file: str,
+    ) -> str | None:
+        """Return ptc's previous cursor on owner's file.
+
+        Args:
+            ptc_id (int): requestor's participant ID
+            owner_id (int): owner user's participant ID
+            file (str): filename
+
+        Returns:
+            str | None: cursor info if exists
+        """
+
+        cursor_key = self.redis_key.KEY_USER_PREV_CURSOR.format(ptc_id=ptc_id)
+        hash_key = f"{owner_id}.{file}"
+        return self.r.hget(cursor_key, hash_key)
+
+    def set_last_cursor(
+        self,
+        ptc_id: int,
+        owner_id: int,
+        file: str,
+        cursor: str,
+    ):
+        """Set ptc's previous cursor on owner's file.
+
+        Args:
+            ptc_id (int): requestor's participant ID
+            owner_id (int): owner user's participant ID
+            file (str): filename
+            cursor (str): cursor info
+        """
+
+        cursor_key = self.redis_key.KEY_USER_PREV_CURSOR.format(ptc_id=ptc_id)
+        hash_key = f"{owner_id}.{file}"
+        self.r.hset(cursor_key, hash_key, cursor)
+
 
 class S3Controller:
     def __init__(

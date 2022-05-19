@@ -7,8 +7,7 @@ from server.models.course import PROJ_PERM
 from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
-from server.websockets.main import requires
-from server.websockets.course import in_lesson
+from server.websockets.decorators import in_lesson, requires
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
