@@ -20,7 +20,7 @@ async def broadcast_file_mod(sid: str, data: dict):
         ownerId (int): file owner's participant ID
         file (str): filename
         cursor (str): cursor info
-        change (list[int | str]): enterred charaters
+        change (list[int | str]): enterred characters
         timestamp (float): timestamp when this message is sent
     }
     """
@@ -30,7 +30,7 @@ async def broadcast_file_mod(sid: str, data: dict):
     try:
         db = get_db()
 
-        # Check READ and WRITE permission. If denied, ForbiddenProjectException occurs.
+        # Check READ and WRITE permission. If denied, ForbiddenProjectException is raised.
         proj_file_ctrl = await ProjectFileController.from_session(sid, db)
         proj_file_ctrl.get_target_info(target_ptc_id=owner_id, check_perm=PROJ_PERM.READ & PROJ_PERM.WRITE)
 
@@ -74,6 +74,7 @@ async def file_save(sid: str, data: dict):
         proj_file_ctrl = await ProjectFileController.from_session(sid, get_db())
         proj_file_ctrl.file_save(owner_id, file, content)
 
+        # FIXME: 적절한 유저에게 브로드캐스팅
         await sio.emit(WSEvent.FILE_MOD, {"success": True}, to=sid)
     except BaseException as e:
         await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid)
