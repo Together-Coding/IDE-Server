@@ -624,6 +624,7 @@ class S3Controller:
                         if size <= 0:
                             content = self.redis_key.NEW_FILE_CONTENT
 
+                        # TODO: Bulk file upload 는 추후 RedisController 의 메서드 추가 후 함께 사용
                         if size <= SIZE_LIMIT:
                             r.set(name=_r_file_key, value=content, ex=ttl, nx=not overwrite)
                         else:

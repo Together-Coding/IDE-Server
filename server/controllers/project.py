@@ -456,7 +456,7 @@ class ProjectFileController(LessonUserController):
 
         enc_filename = text_encode(file)
 
-        # Check READ and WRITE permission. If denied, ForbiddenProjectException occurs.
+        # Check READ and WRITE permission. If denied, ForbiddenProjectException is raised.
         self.get_target_info(target_ptc_id=owner_id, check_perm=PROJ_PERM.READ & PROJ_PERM.WRITE)
 
         # If the file not in the file list, append it.
@@ -478,7 +478,7 @@ class ProjectFileController(LessonUserController):
 
         # Save content
         if new_file_size > SIZE_LIMIT:
-            object_key = self.s3_ctrl.s3_key.KEY_BULK_FILE.format(ptc_id=owner_id, filename=file)
+            object_key = self.s3_ctrl.s3_key.KEY_BULK_FILE.format(ptc_id=owner_id, filename=enc_filename)
 
             # Save content in S3
             self.s3_ctrl.put_s3_object(object_key, io.StringIO(content))
