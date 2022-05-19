@@ -7,12 +7,15 @@ class CourseBaseController(BaseContoller):
     def __init__(
         self,
         course_id: int,
+        course: Course | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         self.course_id = course_id
+
+        self._course = course
 
     @property
     def my_course(self) -> Course:
@@ -26,7 +29,6 @@ class CourseUserController(CourseBaseController):
     def __init__(
         self,
         user_id: int,
-        course: Course | None = None,
         participant: Participant | None = None,
         *args,
         **kwargs,
@@ -35,7 +37,6 @@ class CourseUserController(CourseBaseController):
 
         self.user_id = user_id
 
-        self._course = course
         self._participant = participant
 
     @property
@@ -51,7 +52,7 @@ class CourseUserController(CourseBaseController):
         return self._participant
 
     def check_accessibility(self):
-        """Check accessibility from the user to the course. 
+        """Check accessibility from the user to the course.
         If not accessible, ``AccessCourseFailException`` is raised."""
 
         if not self.my_course:
@@ -65,4 +66,4 @@ class CourseUserController(CourseBaseController):
             return
 
         # if not self.my_course.accessible:
-            # raise AccessCourseFailException("수업이 접근 불가능 상태로 설정되어 있습니다. 수업 담당자에게 문의 바랍니다.")
+        # raise AccessCourseFailException("수업이 접근 불가능 상태로 설정되어 있습니다. 수업 담당자에게 문의 바랍니다.")
