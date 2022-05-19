@@ -13,8 +13,13 @@ class Course(Base):
     name = Column(String(100), nullable=False)
     password = Column(String(255), nullable=True)
     description = Column(String(255), nullable=True, default="")
-    accessible = Column(Boolean, nullable=False, default=True)
-    active = Column(Boolean, nullable=False, default=True)
+
+    # API 서버 측의 수정으로, 컬럼이 사라짐
+    # accessible = Column(Integer, nullable=False, default=True)
+    # active = Column(Boolean, nullable=False, default=True)
+
+    # API 서버 측에서, participant.role == TEACHER 인 레코드 찾는게 오래 걸려서 추가됨
+    teacher_id = Column(Integer, nullable=True)
 
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     updated_at = Column(DATETIME, nullable=True, onupdate=utc_dt_now)
