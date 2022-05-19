@@ -11,4 +11,4 @@ class S3Key(LessonKeyBase):
     KEY_USER_PROJECT = "/project/{ptc_id}.zip"
 
     # 용량 제한을 넘는 템플릿 or 유저 파일
-    KEY_BULK_FILE = "/bulk/{filename}"  # filename: hashed content
+    KEY_BULK_FILE = "/bulk/{ptc_id}-{filename}"  # filename: encoded name
