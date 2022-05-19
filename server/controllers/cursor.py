@@ -1,4 +1,4 @@
-from server.controllers.base import LessonUserController
+from server.controllers.lesson import LessonUserController
 
 
 class CursorController(LessonUserController):

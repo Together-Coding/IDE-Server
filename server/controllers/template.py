@@ -1,6 +1,6 @@
 import os
 
-from server.controllers.base import LessonBaseController
+from server.controllers.lesson import LessonBaseController
 from server.models.course import Lesson, Participant
 from server.utils.etc import get_hashed
 

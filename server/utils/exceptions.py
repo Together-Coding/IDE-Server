@@ -6,6 +6,14 @@ class BaseException(Exception):
 class MissingFieldException(BaseException):
     pass
 
+class AccessCourseFailException(BaseException):
+    """Failed to access a course. The reasons are...
+    - The course does not exist
+    - The course is in non-accessible status
+    - Not registered to the course
+    etc
+    """
+    pass
 
 class ProjectFileException(BaseException):
     pass

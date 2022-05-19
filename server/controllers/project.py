@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from configs import settings
 from constants.redis import SIZE_LIMIT
 from constants.s3 import S3Key
-from server.controllers.base import LessonUserController
+from server.controllers.lesson import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject

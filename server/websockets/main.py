@@ -6,8 +6,6 @@ from server import sio
 from server.controllers.user import AuthController
 from server.websockets import session as ws_session
 
-# TODO: course.accessible, .active 값에 따른 작업 가능 여부 처리
-
 
 @sio.event
 async def connect(sid: str, environ: dict, auth: dict[str, Any]):
