@@ -9,6 +9,7 @@ __all__ = [
     "project",
     "course",
     "cursor",
+    "code",
 ]
 
 
