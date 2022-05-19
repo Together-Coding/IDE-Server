@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
 
     S3_BUCKET: str = ""
+    PROJECT_SIZE_LIMIT: int = 536_870_912  # 512MB in bytes
 
     class Config:
         env_file = ".env"

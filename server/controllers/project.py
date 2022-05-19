@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+import io
 import os
 
 from sqlalchemy.orm import joinedload
-from configs import settings
 
+from configs import settings
 from constants.redis import SIZE_LIMIT
 from constants.s3 import S3Key
 from server.controllers.base import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
-from server.helpers.redis_ import r
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 from server.utils.etc import get_hashed, text_decode, text_encode
 from server.utils.exceptions import (
@@ -19,6 +19,7 @@ from server.utils.exceptions import (
     ParticipantNotFoundException,
     ProjectFileException,
     ProjectNotFoundException,
+    TotalSizeExceededException,
 )
 from server.utils.time_utils import utc_dt_now
 
@@ -443,3 +444,51 @@ class ProjectFileController(LessonUserController):
             self.redis_ctrl.delete_file(filename=enc_filename, ptc_id=owner_id, encoded=True)
 
         # TODO: code_references 참조 수정
+
+    def file_save(self, owner_id: int, file: str, content: str):
+        """Save file content into Redis
+
+        Args:
+            owner_id (int): file owner's participant ID
+            file (str): filename
+            content (str): entire file content to save
+        """
+
+        enc_filename = text_encode(file)
+
+        # Check READ and WRITE permission. If denied, ForbiddenProjectException occurs.
+        self.get_target_info(target_ptc_id=owner_id, check_perm=PROJ_PERM.READ & PROJ_PERM.WRITE)
+
+        # If the file not in the file list, append it.
+        if not self.redis_ctrl.has_file(filename=enc_filename, ptc_id=owner_id, encoded=True):
+            self.redis_ctrl.append_file_list(filename=enc_filename, size=0, ptc_id=owner_id, encoded=True)
+
+        # Retrieve current file size
+        prev_file_size = self.redis_ctrl.get_file_size_score(filename=enc_filename, ptc_id=owner_id, encoded=True)
+        new_file_size = len(content)
+
+        prev_total_size = self.redis_ctrl.get_total_file_size(ptc_id=owner_id)
+        new_total_size = prev_total_size + new_file_size - prev_file_size
+
+        # If total size is greater than limit, respond an error
+        if new_total_size > settings.PROJECT_SIZE_LIMIT:
+            raise TotalSizeExceededException(
+                f"수정 내역을 저장할 수 없습니다. 프로젝트의 크기 제한({settings.PROJECT_SIZE_LIMIT//2**20}MB)을 초과하였습니다."
+            )
+
+        # Save content
+        if new_file_size > SIZE_LIMIT:
+            object_key = self.s3_ctrl.s3_key.KEY_BULK_FILE.format(ptc_id=owner_id, filename=file)
+
+            # Save content in S3
+            self.s3_ctrl.put_s3_object(object_key, io.StringIO(content))
+
+            # Save S3 object key in Redis
+            self.redis_ctrl.store_file(filename=enc_filename, content=object_key, ptc_id=owner_id, hashed=False)
+        else:  # size is less than limit
+            # Save content in Redis
+            self.redis_ctrl.store_file(filename=enc_filename, content=content, ptc_id=owner_id, hashed=False)
+
+        # Update file size
+        self.redis_ctrl.set_file_size(filename=enc_filename, size=new_file_size, ptc_id=owner_id, encoded=True)
+        self.redis_ctrl.increase_total_file_size(amount=new_file_size - prev_file_size, ptc_id=owner_id)

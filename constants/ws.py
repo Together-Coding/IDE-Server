@@ -22,6 +22,10 @@ class WSEvent:
     CURSOR_LAST = "CURSOR_LAST"
     CURSOR_MOVE = "CURSOR_MOVE"
 
+    # File
+    FILE_MOD = "FILE_MOD"
+    FILE_SAVE = "FILE_SAVE"
+
 
 class Room:
     PERSONAL_PTC = "ptc-{ptc_id}"  # Used to retrieve session id from participant id

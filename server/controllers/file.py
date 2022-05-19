@@ -1,3 +1,4 @@
+from io import IOBase
 import os
 import tempfile
 import zipfile
@@ -184,7 +185,7 @@ class RedisController:
         filename: str,
         ptc_id: int | None = None,
         encoded=False,
-    ) -> int | float | None:
+    ) -> int | None:
         """Return score of ``list_key:filename``.
 
         Args:
@@ -206,7 +207,10 @@ class RedisController:
         if not encoded:
             filename = text_encode(filename)
 
-        return self.r.zscore(list_key, filename)
+        try:
+            return int(self.r.zscore(list_key, filename))
+        except (ValueError, TypeError):
+            return None
 
     def has_file(self, **kwargs):
         """Return True if file exists in file list, otherwise, False."""
@@ -228,6 +232,19 @@ class RedisController:
         # TODO: 템플릿 파일 저장 시에도 각 leaf directory 에 대해서 dummy file 추가하도록
         dummy_file = os.path.join(dirname, self.redis_key.DUMMY_DIR_MARK)
         return self.has_file(filename=dummy_file, ptc_id=ptc_id, encoded=False)
+
+    def get_total_file_size(self, ptc_id: int):
+        """Return participant's total file size
+
+        Args:
+            ptc_id (int): participant ID
+        """
+
+        key = self.redis_key.KEY_USER_CUR_SIZE.format(ptc_id=ptc_id)
+        try:
+            return int(self.r.get(key) or 0)
+        except ValueError:
+            return self.set_total_file_size(ptc_id=ptc_id)
 
     def increase_total_file_size(
         self,
@@ -293,6 +310,21 @@ class RedisController:
             list_key = self.redis_key.KEY_TEMPLATE_FILE_LIST
 
         self.r.zadd(list_key, {filename: size})
+
+
+    def set_file_size(
+        self,
+        filename: str,
+        size: int,
+        ptc_id: int,
+        encoded=False,
+    ):
+        """Set file size.
+        Because ``redis.zadd`` is used to modify score value too, this calls
+         ``append_file_list`` method.
+        """
+
+        return self.append_file_list(filename, size, ptc_id, encoded)
 
     def pop_file_list(
         self,
@@ -481,6 +513,14 @@ class S3Controller:
     ):
         self.s3_key = S3Key(course_id, lesson_id)
         self.redis_key = redis_key
+
+    @staticmethod
+    def put_s3_object(
+        object_key: str,
+        body: IOBase,
+        bucket: str | None = None,
+    ) -> str:
+        s3.put_object(body=body, key=object_key, bucket=bucket)
 
     @staticmethod
     def get_s3_object_content(

@@ -59,6 +59,6 @@ def test_s3_key():
     )
 
     filename = rand_str()
-    assert s3_key.KEY_BULK_FILE.format(filename=filename) == (S3Key.PREFIX + S3Key.KEY_BULK_FILE).format(
-        course_id=course_id, lesson_id=lesson_id, filename=filename
+    assert s3_key.KEY_BULK_FILE.format(ptc_id=3, filename=filename) == (S3Key.PREFIX + S3Key.KEY_BULK_FILE).format(
+        course_id=course_id, lesson_id=lesson_id, ptc_id=3, filename=filename
     )

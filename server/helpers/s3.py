@@ -1,4 +1,4 @@
-from io import BufferedReader
+from io import IOBase
 
 import boto3
 from botocore.errorfactory import ClientError
@@ -29,7 +29,7 @@ def get_object(key: str, bucket: str | None = None):
     return _s3.get_object(Bucket=bucket, Key=_refine_key(key))
 
 
-def put_object(body: BufferedReader, key: str, bucket: str | None = None, acl="private"):
+def put_object(body: IOBase, key: str, bucket: str | None = None, acl="private"):
     if not bucket:
         bucket = settings.S3_BUCKET
 
