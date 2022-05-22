@@ -34,7 +34,12 @@ async def broadcast_file_mod(sid: str, data: dict):
         proj_file_ctrl = await ProjectFileController.from_session(sid, db)
         proj_file_ctrl.get_target_info(target_ptc_id=owner_id, check_perm=PROJ_PERM.READ & PROJ_PERM.WRITE)
 
-        # FIXME: 적절한 유저에게 브로드캐스팅
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=owner_id,
+        )
         await sio.emit(
             WSEvent.FILE_MOD,
             {
@@ -46,7 +51,7 @@ async def broadcast_file_mod(sid: str, data: dict):
                 "change": data.get("change"),
                 "timestamp": data.get("timestamp"),
             },
-            to=sid,
+            room=target_room,
         )
 
     except BaseException as e:
@@ -74,7 +79,12 @@ async def file_save(sid: str, data: dict):
         proj_file_ctrl = await ProjectFileController.from_session(sid, get_db())
         proj_file_ctrl.file_save(owner_id, file, content)
 
-        # FIXME: 적절한 유저에게 브로드캐스팅
-        await sio.emit(WSEvent.FILE_MOD, {"success": True}, to=sid)
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=owner_id,
+        )
+        await sio.emit(WSEvent.FILE_MOD, {"success": True}, room=target_room)
     except BaseException as e:
         await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid)

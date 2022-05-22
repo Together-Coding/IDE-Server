@@ -56,13 +56,12 @@ def get_ptc_sid(course_id: int, lesson_id: int, ptc_id: int) -> str | None:
         ptc_id (int): participant ID from which you want to get sid
     """
 
-    _namespace = None
     room_name = Room.PERSONAL_PTC.format(course_id=course_id, lesson_id=lesson_id, ptc_id=ptc_id)
 
-    _rooms: dict = sio.manager.rooms[_namespace]
-    sids = _rooms.get(room_name, [])
-    
-    return sids[0] if sids else None
+    _rooms: dict = sio.manager.rooms['/']  # Default namespace is '/'
+    sids = _rooms.get(room_name, {})
+
+    return list(sids.keys())[0] if sids else None
 
 
 async def enter_room(sid: str, room_type: str, new_room: str, limit: int | None = None):
