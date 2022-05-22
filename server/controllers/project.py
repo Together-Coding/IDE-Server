@@ -5,6 +5,7 @@ import os
 
 from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 
 from configs import settings
 from constants.redis import SIZE_LIMIT
@@ -169,8 +170,11 @@ class ProjectController(LessonUserController):
         if row and row.permission == permission:
             return None
 
-        if not row:
-            row = ProjectViewer(project_id=self.my_project.id, viewer_id=target_id, permission=0)
+        try:
+            if not row:
+                row = ProjectViewer(project_id=self.my_project.id, viewer_id=target_id, permission=0)
+        except IntegrityError:  # No foreign key
+            return
 
         # 권한 변경, 저장
         diff_perm = row.permission ^ permission  # 1 on different bit
