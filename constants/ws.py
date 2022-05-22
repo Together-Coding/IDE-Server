@@ -2,11 +2,13 @@ class WSEvent:
     # Common
     ERROR = "ERROR"
 
-    # Initial
+    # Lesson
     INIT_LESSON = "INIT_LESSON"
+    ALL_PARTICIPANT = "ALL_PARTICIPANT"
+
+    # Project
     ACTIVITY_PING = "ACTIVITY_PING"
 
-    # Project permission
     PROJECT_ACCESSIBLE = "PROJECT_ACCESSIBLE"
     PROJECT_PERM = "PROJECT_PERM"
     PROJECT_PERM_CHANGED = "PROJECT_PERM_CHANGED"

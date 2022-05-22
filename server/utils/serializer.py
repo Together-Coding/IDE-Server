@@ -1,6 +1,39 @@
 from typing import Any
+import datetime
 
 from server.models.course import Participant, ProjectViewer, UserProject
+
+
+def iso8601(dt: datetime.datetime):
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def participant(ptc: Participant, proj: UserProject) -> dict[str, Any]:
+    """수업 참여자에 대한 public 데이터를 serialize
+
+    Args:
+        ptc (Participant): user's participant record
+        proj (UserProject): user's Project record
+
+    Returns:
+        dict[str, Any]: serialized dict
+    """
+
+    data = {
+        "id": ptc.id,
+        "is_teacher": ptc.is_teacher,
+        "nickname": ptc.nickname,
+    }
+    if proj:
+        data["project"] = {
+            "id": proj.id,
+            "active": proj.active,
+            "created_at": iso8601(proj.created_at),
+        }
+    else:
+        data["project"] = None
+
+    return data
 
 
 def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -> dict[str, Any]:
