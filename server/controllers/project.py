@@ -272,7 +272,7 @@ class ProjectFileController(LessonUserController):
         if check_perm:
             allowed = self._check_permission(check_perm, self.my_participant, target_ptc, target_proj)
             if not allowed:
-                raise ForbiddenProjectException("해당 유저에 대한 읽기 권한이 없습니다.")
+                raise ForbiddenProjectException(f"해당 유저에 대한 {PROJ_PERM.translate(check_perm)} 권한이 없습니다.")
 
         return target_ptc, target_proj
 

@@ -101,6 +101,18 @@ class PROJ_PERM:
     EXEC: int = 0b_0000_0001
     ALL: int = 0b_0000_0111
 
+    @staticmethod
+    def translate(perm: PROJ_PERM) -> str:
+        s = []
+        if perm & PROJ_PERM.READ:
+            s.append("읽기")
+        elif perm & PROJ_PERM.WRITE:
+            s.append("쓰기")
+        elif perm & PROJ_PERM.EXEC:
+            s.append("실행")
+
+        return "/".join(s)
+
 
 class ProjectViewer(Base):
     __tablename__ = "project_viewers"
@@ -114,10 +126,10 @@ class ProjectViewer(Base):
     added = 0
     removed = 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
 
-    def has_perm(self, need_perm: PROJ_PERM):
+    def has_perm(self, need_perm: PROJ_PERM) -> int:
         return self.permission & need_perm
 
     @property
