@@ -1,8 +1,9 @@
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from server.controllers.course import CourseBaseController, CourseUserController
 from server.controllers.file import RedisController, S3Controller
-from server.models.course import Lesson, UserProject
+from server.models.course import Lesson, Participant, UserProject
 from server.websockets import session as ws_session
 
 
@@ -34,6 +35,23 @@ class LessonBaseController(CourseBaseController):
             self._lesson = self.db.query(Lesson).filter(Lesson.id == self.lesson_id).first()
 
         return self._lesson
+
+    def get_all_participant(self) -> list[Participant, UserProject]:
+        """Return all participants and their projects in the course"""
+
+        return (
+            self.db.query(Participant, UserProject)
+            .filter(Participant.course_id == self.course_id)
+            .join(
+                UserProject,
+                and_(
+                    UserProject.participant_id == Participant.id,
+                    UserProject.lesson_id == self.lesson_id,
+                ),
+                isouter=True,
+            )
+            .all()
+        )
 
 
 class LessonUserController(CourseUserController, LessonBaseController):
