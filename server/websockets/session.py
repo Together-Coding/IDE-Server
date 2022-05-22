@@ -1,6 +1,6 @@
 from typing import Any
 
-from constants.ws import Room
+from constants.ws import Room, ROOM_KEY
 from server import sio
 
 
@@ -35,7 +35,7 @@ async def clear(sid: str, exc: list[str] | None = None, namespaces: str | None =
                 del s[k]
 
 
-def enter_ptc_id_room(sid: str, ptc_id: int):
+def enter_ptc_id_room(sid: str, course_id: int, lesson_id: int, ptc_id: int):
     """Enter Participant.id specific room in order to retrieve users' sid from participation ids
 
     Args:
@@ -43,14 +43,33 @@ def enter_ptc_id_room(sid: str, ptc_id: int):
         ptc_id (int): Participant.id
     """
 
-    sio.enter_room(sid, Room.PERSONAL_PTC.format(ptc_id=ptc_id))
+    sio.enter_room(sid, Room.PERSONAL_PTC.format(course_id=course_id, lesson_id=lesson_id, ptc_id=ptc_id))
+
+
+def get_ptc_sid(course_id: int, lesson_id: int, ptc_id: int) -> str | None:
+    """Return sid from ptc_id.
+    sid can be None if the participant is not connected the lesson.
+
+    Args:
+        course_id (int): Course.id that ptc is supposed to be in.
+        lesson_id (int): Lesson.id that ptc is supposed to be in.
+        ptc_id (int): participant ID from which you want to get sid
+    """
+
+    _namespace = None
+    room_name = Room.PERSONAL_PTC.format(course_id=course_id, lesson_id=lesson_id, ptc_id=ptc_id)
+
+    _rooms: dict = sio.manager.rooms[_namespace]
+    sids = _rooms.get(room_name, [])
+    
+    return sids[0] if sids else None
 
 
 async def enter_room(sid: str, room_type: str, new_room: str, limit: int | None = None):
     """``room_type``별 최대 limit 개의 room 에 접속한다."""
 
     # 기존에 접속한 room 을 가져온다.
-    room_key = f"room-{room_type}"
+    room_key = ROOM_KEY.format(key=room_type)
     rooms: list = await get(sid, room_key) or []
 
     # If already enterred, do nothing.
@@ -88,3 +107,8 @@ async def exit_room(sid: str, room_type: str, room: str):
 
     rooms.remove(room)
     await update(sid, {room_key: rooms})
+
+
+async def get_room_list(sid: str, room_type: str) -> list[str]:
+    room_type = ROOM_KEY.format(key=room_type)
+    return (await get(sid, key=room_type)) or []

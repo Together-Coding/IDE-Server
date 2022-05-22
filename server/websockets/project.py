@@ -1,4 +1,4 @@
-from constants.ws import Room, WSEvent
+from constants.ws import ROOM_KEY, Room, WSEvent
 from server import sio
 from server.controllers.project import PingController, ProjectController, ProjectFileController
 from server.helpers import sentry
@@ -7,7 +7,106 @@ from server.models.course import PROJ_PERM
 from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
+from server.websockets import session as ws_session
 from server.websockets.decorators import in_lesson, requires
+
+
+@sio.on(WSEvent.SUBS_PARTICIPANT_LIST)
+@in_lesson
+async def get_ptc_subs_list(sid: str, data: None = None):
+    """Return participants data that I am subscribing."""
+
+    rooms = await ws_session.get_room_list(sid, room_type=WSEvent.SUBS_PARTICIPANT)
+
+    subs_ptc_ids = []
+    for room in rooms:
+        ptc_id = room.rsplit(":", 1)[-1]
+        subs_ptc_ids.append(ptc_id)
+
+    await sio.emit(
+        WSEvent.SUBS_PARTICIPANT_LIST,
+        {"participant_id": sorted(subs_ptc_ids)},
+        to=sid,
+    )
+
+
+@sio.on(WSEvent.SUBS_PARTICIPANT)
+@requires(WSEvent.SUBS_PARTICIPANT, ["target"])
+@in_lesson
+async def subscribe_participant(sid: str, data: dict):
+    """Subscribe specific participants and their projects.
+
+    data: {
+        target (list): participant IDs to subscribe.
+    }
+    """
+
+    target = data.get("target", [])
+
+    proj_file_ctrl = await ProjectFileController.from_session(sid, db=get_db())
+
+    success_id = []
+    fail_reason = {}
+    for ptc_id in set(target):
+        room_name = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=ptc_id,
+        )
+
+        try:
+            # Check readability
+            proj_file_ctrl.get_target_info(target_ptc_id=ptc_id, check_perm=PROJ_PERM.READ)
+
+            # Enter subs room
+            await ws_session.enter_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, new_room=room_name)
+            success_id.append(ptc_id)
+        except BaseException as e:
+            fail_reason[ptc_id] = e.error
+        except:
+            sentry.exc()
+
+    await sio.emit(
+        WSEvent.SUBS_PARTICIPANT,
+        {
+            "success_id": success_id,
+            "fail_id": list(fail_reason.keys()),
+            "fail_reason": fail_reason,
+        },
+        to=sid,
+    )
+
+
+@sio.on(WSEvent.UNSUBS_PARTICIPANT)
+@requires(WSEvent.UNSUBS_PARTICIPANT, ["target"])
+@in_lesson
+async def unsubscribe_participant(sid: str, data: dict):
+    """Unsubscribe specific participants and their project.
+
+    data: {
+        target (list): participant IDs to unsubscribe
+    }
+    """
+
+    target = data.get("target", [])
+
+    for ptc_id in set(target):
+        # 자신에 대해서는 구독 해제 불가
+        if ptc_id == await ws_session.get('participant_id'):
+            continue
+
+        room_name = Room.SUBS_PTC.format(
+            course_id=await ws_session.get(sid, "course_id"),
+            lesson_id=await ws_session.get(sid, "lesson_id"),
+            ptc_id=ptc_id,
+        )
+
+        try:
+            await ws_session.exit_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, room=room_name)
+        except:
+            sentry.exc()
+
+    await sio.emit(WSEvent.UNSUBS_PARTICIPANT, {"success": True}, to=sid)
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
