@@ -43,8 +43,8 @@ class Participant(Base):
     user = relationship("User", back_populates="participation", uselist=False)
     project: UserProject = relationship("UserProject", uselist=False)
 
-    KEY_TEACHER = "teacher"
-    KEY_STUDENT = "student"
+    KEY_TEACHER = "TEACHER"
+    KEY_STUDENT = "STUDENT"
 
     @property
     def is_teacher(self):

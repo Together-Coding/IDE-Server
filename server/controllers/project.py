@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import os
 
+from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
 
 from configs import settings
@@ -12,7 +13,7 @@ from server.controllers.lesson import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.etc import get_hashed, text_decode, text_encode
+from server.utils.etc import text_decode, text_encode
 from server.utils.exceptions import (
     FileAlreadyExistsException,
     ForbiddenProjectException,
@@ -55,7 +56,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)  # 자신이 속한 수업의 유저들
                 .filter(Participant.user_id != self.user_id)  # 자신 제외
                 .join(UserProject, UserProject.participant_id == Participant.id)  # 유저의 프로젝트
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)  # 유저의 권한
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.project_id == UserProject.id,
+                        ProjectViewer.viewer_id == self.my_participant.id,
+                    ),
+                    isouter=True,
+                )  # 유저의 권한
             )
         else:
             # 학생인 경우, ``ProjectViewer.viewer`` 값이 자기 자신인 레코드를 이용
@@ -72,8 +80,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.project_id == UserProject.id, isouter=True)
-                .filter(ProjectViewer.viewer_id == self.my_participant.id)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.project_id == UserProject.id,
+                        ProjectViewer.viewer_id == self.my_participant.id,
+                    ),
+                    isouter=True,
+                )
             )
             query = query.union(teacher_query)
 
@@ -90,7 +104,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.user_id != self.user_id)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.viewer_id == Participant.id,
+                        ProjectViewer.project_id == self.my_project.id,
+                    ),
+                    isouter=True,
+                )
             )
         else:
             # 학생인 경우, ``ProjectViewer.project_id`` 값이 자신의 프로젝트인 레코드 이용
@@ -107,8 +128,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)
-                .filter(ProjectViewer.project_id == self.my_project.id)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.viewer_id == Participant.id,
+                        ProjectViewer.project_id == self.my_project.id,
+                    ),
+                    isouter=True,
+                )
             )
             query = query.union(teacher_query)
 

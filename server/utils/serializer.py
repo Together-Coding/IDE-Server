@@ -1,9 +1,14 @@
 from typing import Any
 
-from server.models.course import Participant, ProjectViewer, UserProject
+from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 
 
-def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -> dict[str, Any]:
+def accessible_user(
+    part: Participant,
+    proj: UserProject,
+    perm: ProjectViewer,
+    no_perm_val=0,
+) -> dict[str, Any]:
     """자신의/다른 유저의 접근 권한에 대한 데이터를 serialize
 
     Args:
@@ -21,7 +26,7 @@ def accessible_user(part: Participant, proj: UserProject, perm: ProjectViewer) -
         "nickname": part.nickname,
         "role": part.role,
         "active": proj.active if proj else False,
-        "permission": perm.permission if perm else 0,
+        "permission": perm.permission if perm else no_perm_val,
     }
 
 

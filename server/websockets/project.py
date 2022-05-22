@@ -35,8 +35,12 @@ async def project_accessible(sid: str, data=None):
     from_users = proj_ctrl.accessed_by()
 
     resp = {
-        "accessible_to": [serializer.accessible_user(part, proj, perm) for part, proj, perm in to_users],
-        "accessed_by": [serializer.accessible_user(part, proj, perm) for part, proj, perm in from_users],
+        "accessible_to": [
+            serializer.accessible_user(part, proj, perm, PROJ_PERM.READ) for part, proj, perm in to_users
+        ],
+        "accessed_by": [
+            serializer.accessible_user(part, proj, perm, PROJ_PERM.READ) for part, proj, perm in from_users
+        ],
     }
     await sio.emit(WSEvent.PROJECT_ACCESSIBLE, resp, to=sid)
 
