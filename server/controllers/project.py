@@ -96,6 +96,9 @@ class ProjectController(LessonUserController):
     def accessed_by(self):
         """Return user list who can access my project"""
 
+        if not self.my_project:
+            self.create_if_not_exists()
+
         if self.my_participant.is_teacher:
             # 선생인 경우, 전체 학생의 레코드 반환.
             # ProjectViewer 에서 권한을 명시할 수 있으므로, 이 테이블을 join
@@ -301,9 +304,15 @@ class ProjectFileController(LessonUserController):
                 )
                 target_proj = proj_ctrl.create_if_not_exists()
 
-                # 수업 템플릿 코드 적용
-                tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
-                tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
+                if not target_proj.template_applied:
+                    # 수업 템플릿 코드 적용
+                    tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
+                    tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
+
+                    target_proj.template_applied = True
+                    self.db.add(target_proj)
+                    self.db.commit()
+
             else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
                 raise ProjectNotFoundException("아직 강의에 참여하지 않은 유저입니다.")
         else:  # UserProject 가 있는 경우
