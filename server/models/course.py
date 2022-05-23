@@ -107,9 +107,9 @@ class PROJ_PERM:
         s = []
         if perm & PROJ_PERM.READ:
             s.append("읽기")
-        elif perm & PROJ_PERM.WRITE:
+        if perm & PROJ_PERM.WRITE:
             s.append("쓰기")
-        elif perm & PROJ_PERM.EXEC:
+        if perm & PROJ_PERM.EXEC:
             s.append("실행")
 
         return "/".join(s)
