@@ -40,6 +40,8 @@ def enter_ptc_id_room(sid: str, course_id: int, lesson_id: int, ptc_id: int):
 
     Args:
         sid (str): websocket session id
+        course_id (int): Course.id that ptc is supposed to be in.
+        lesson_id (int): Lesson.id that ptc is supposed to be in.
         ptc_id (int): Participant.id
     """
 
