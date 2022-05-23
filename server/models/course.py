@@ -43,8 +43,8 @@ class Participant(Base):
     user = relationship("User", back_populates="participation", uselist=False)
     project: UserProject = relationship("UserProject", uselist=False)
 
-    KEY_TEACHER = "teacher"
-    KEY_STUDENT = "student"
+    KEY_TEACHER = "TEACHER"
+    KEY_STUDENT = "STUDENT"
 
     @property
     def is_teacher(self):
@@ -87,6 +87,7 @@ class UserProject(Base):
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     recent_activity_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     active = Column(Boolean, nullable=False, default=0)
+    template_applied = Column(Boolean, nullable=False, default=0)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
     lesson: Lesson = relationship("Lesson", back_populates="projects", uselist=False)
@@ -101,6 +102,18 @@ class PROJ_PERM:
     EXEC: int = 0b_0000_0001
     ALL: int = 0b_0000_0111
 
+    @staticmethod
+    def translate(perm: PROJ_PERM) -> str:
+        s = []
+        if perm & PROJ_PERM.READ:
+            s.append("읽기")
+        if perm & PROJ_PERM.WRITE:
+            s.append("쓰기")
+        if perm & PROJ_PERM.EXEC:
+            s.append("실행")
+
+        return "/".join(s)
+
 
 class ProjectViewer(Base):
     __tablename__ = "project_viewers"
@@ -114,10 +127,10 @@ class ProjectViewer(Base):
     added = 0
     removed = 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__} project={self.project_id} viewer={self.viewer_id} perm={self.permission}"
 
-    def has_perm(self, need_perm: PROJ_PERM):
+    def has_perm(self, need_perm: PROJ_PERM) -> int:
         return self.permission & need_perm
 
     @property

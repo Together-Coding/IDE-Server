@@ -81,7 +81,12 @@ async def update_last_cursor(sid: str, data: dict):
         line = file_info["line"]
         cursor = file_info["cursor"]
 
-        # FIXME: 프로젝트에 브로드캐스트
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=await ws_session.get(sid, 'course_id'),
+            lesson_id=await ws_session.get(sid, 'lesson_id'),
+            ptc_id=owner_id,
+        )
         await sio.emit(
             WSEvent.CURSOR_MOVE,
             {
@@ -95,7 +100,7 @@ async def update_last_cursor(sid: str, data: dict):
                 },
                 "timestamp": timestamp,
             },
-            to=sid,
+            room=target_room,
         )
         
         # If the event is 'open', do not need to update it, but need to broadcast the cursor.

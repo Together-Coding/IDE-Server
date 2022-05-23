@@ -1,4 +1,4 @@
-from constants.ws import Room, WSEvent
+from constants.ws import ROOM_TYPE, Room, WSEvent
 from server import sio
 from server.controllers.project import PingController, ProjectController, ProjectFileController
 from server.helpers import sentry
@@ -7,7 +7,106 @@ from server.models.course import PROJ_PERM
 from server.utils import serializer
 from server.utils.exceptions import BaseException
 from server.utils.response import ws_error_response
+from server.websockets import session as ws_session
 from server.websockets.decorators import in_lesson, requires
+
+
+@sio.on(WSEvent.SUBS_PARTICIPANT_LIST)
+@in_lesson
+async def get_ptc_subs_list(sid: str, data: None = None):
+    """Return participants data that I am subscribing."""
+
+    rooms = await ws_session.get_room_list(sid, room_type=WSEvent.SUBS_PARTICIPANT)
+
+    subs_ptc_ids = []
+    for room in rooms:
+        ptc_id = room.rsplit(":", 1)[-1]
+        subs_ptc_ids.append(ptc_id)
+
+    await sio.emit(
+        WSEvent.SUBS_PARTICIPANT_LIST,
+        {"participant_id": sorted(subs_ptc_ids)},
+        to=sid,
+    )
+
+
+@sio.on(WSEvent.SUBS_PARTICIPANT)
+@requires(WSEvent.SUBS_PARTICIPANT, ["target"])
+@in_lesson
+async def subscribe_participant(sid: str, data: dict):
+    """Subscribe specific participants and their projects.
+
+    data: {
+        target (list): participant IDs to subscribe.
+    }
+    """
+
+    target = data.get("target", [])
+
+    proj_file_ctrl = await ProjectFileController.from_session(sid, db=get_db())
+
+    success_id = []
+    fail_reason = {}
+    for ptc_id in set(target):
+        room_name = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=ptc_id,
+        )
+
+        try:
+            # Check readability
+            proj_file_ctrl.get_target_info(target_ptc_id=ptc_id, check_perm=PROJ_PERM.READ)
+
+            # Enter subs room
+            await ws_session.enter_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, new_room=room_name)
+            success_id.append(ptc_id)
+        except BaseException as e:
+            fail_reason[ptc_id] = e.error
+        except:
+            sentry.exc()
+
+    await sio.emit(
+        WSEvent.SUBS_PARTICIPANT,
+        {
+            "success_id": success_id,
+            "fail_id": list(fail_reason.keys()),
+            "fail_reason": fail_reason,
+        },
+        to=sid,
+    )
+
+
+@sio.on(WSEvent.UNSUBS_PARTICIPANT)
+@requires(WSEvent.UNSUBS_PARTICIPANT, ["target"])
+@in_lesson
+async def unsubscribe_participant(sid: str, data: dict):
+    """Unsubscribe specific participants and their project.
+
+    data: {
+        target (list): participant IDs to unsubscribe
+    }
+    """
+
+    target = data.get("target", [])
+
+    for ptc_id in set(target):
+        # 자신에 대해서는 구독 해제 불가
+        if ptc_id == await ws_session.get('participant_id'):
+            continue
+
+        room_name = Room.SUBS_PTC.format(
+            course_id=await ws_session.get(sid, "course_id"),
+            lesson_id=await ws_session.get(sid, "lesson_id"),
+            ptc_id=ptc_id,
+        )
+
+        try:
+            await ws_session.exit_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, room=room_name)
+        except:
+            sentry.exc()
+
+    await sio.emit(WSEvent.UNSUBS_PARTICIPANT, {"success": True}, to=sid)
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
@@ -35,8 +134,12 @@ async def project_accessible(sid: str, data=None):
     from_users = proj_ctrl.accessed_by()
 
     resp = {
-        "accessible_to": [serializer.accessible_user(part, proj, perm) for part, proj, perm in to_users],
-        "accessed_by": [serializer.accessible_user(part, proj, perm) for part, proj, perm in from_users],
+        "accessible_to": [
+            serializer.accessible_user(part, proj, perm, PROJ_PERM.READ) for part, proj, perm in to_users
+        ],
+        "accessed_by": [
+            serializer.accessible_user(part, proj, perm, PROJ_PERM.READ) for part, proj, perm in from_users
+        ],
     }
     await sio.emit(WSEvent.PROJECT_ACCESSIBLE, resp, to=sid)
 
@@ -56,6 +159,12 @@ async def modify_project_permission(sid: str, data=None):
     if type(data) != list:
         return await sio.emit(WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid)
 
+    my_room_name = Room.SUBS_PTC.format(
+        course_id=proj_ctrl.course_id,
+        lesson_id=proj_ctrl.lesson_id,
+        ptc_id=proj_ctrl.my_participant.id,
+    )
+
     modified_noti = []
     for d in data:
         try:
@@ -63,9 +172,12 @@ async def modify_project_permission(sid: str, data=None):
             if not row:
                 continue
 
-            # TODO: READ 권한이 제거되었다면, 요청한 유저에 대해 구독중인 room 을 나간다.
+            # READ 권한이 제거되었다면, 요청한 유저에 대해 구독중인 room 을 나간다.
             if row.removed & PROJ_PERM.READ:
-                pass
+                viewer_sid = ws_session.get_ptc_sid(
+                    course_id=proj_ctrl.course_id, lesson_id=proj_ctrl.lesson_id, ptc_id=row.viewer_id
+                )
+                await ws_session.exit_room(viewer_sid, room_type=WSEvent.SUBS_PARTICIPANT, room=my_room_name)
 
             modified_noti.append(serializer.permission_modified(proj_ctrl.my_participant.id, row))
         except KeyError:
@@ -73,7 +185,11 @@ async def modify_project_permission(sid: str, data=None):
 
     for noti in modified_noti:
         # 권한이 변경된 유저들에게 알림을 전송한다.
-        ptc_room = Room.PERSONAL_PTC.format(ptc_id=noti["userId"])
+        ptc_room = Room.PERSONAL_PTC.format(
+            course_id=proj_ctrl.course_id,
+            lesson_id=proj_ctrl.lesson_id,
+            ptc_id=noti["userId"],
+        )
         await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room)
 
     await sio.emit(WSEvent.PROJECT_PERM, {"message": "Permission changed."}, to=sid)
@@ -145,8 +261,14 @@ async def file_create(sid: str, data: dict):
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         proj_file_ctrl.create_file_or_dir(owner_id, type_, name)
-        # FIXME: 해당 프로젝트 room 으로 전송
-        await sio.emit(WSEvent.FILE_CREATE, {"type": type_, "name": name}, to=sid)
+
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=owner_id,
+        )
+        await sio.emit(WSEvent.FILE_CREATE, {"type": type_, "name": name}, room=target_room)
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid)
 
@@ -173,7 +295,13 @@ async def file_update(sid: str, data: dict):
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         proj_file_ctrl.update_file_or_dir_name(owner_id, type_, name, rename)
-        # FIXME: 해당 프로젝트 room 으로 전송
+
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=owner_id,
+        )
         await sio.emit(
             WSEvent.FILE_UPDATE,
             {
@@ -182,7 +310,7 @@ async def file_update(sid: str, data: dict):
                 "name": name,
                 "rename": rename,
             },
-            to=sid,
+            room=target_room,
         )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid)
@@ -209,7 +337,12 @@ async def file_delete(sid: str, data: dict):
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         proj_file_ctrl.delete_file_or_dir(owner_id, type_, name)
 
-        # FIXME: 해당 프로젝트 room 으로 전송
+        # 해당 프로젝트 room 으로 전송
+        target_room = Room.SUBS_PTC.format(
+            course_id=proj_file_ctrl.course_id,
+            lesson_id=proj_file_ctrl.lesson_id,
+            ptc_id=owner_id,
+        )
         await sio.emit(
             WSEvent.FILE_DELETE,
             {
@@ -217,7 +350,7 @@ async def file_delete(sid: str, data: dict):
                 "type": type_,
                 "name": name,
             },
-            to=sid,
+            room=target_room,
         )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_DELETE, ws_error_response(e.error), to=sid)

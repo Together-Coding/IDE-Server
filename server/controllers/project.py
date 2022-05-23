@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 import os
 
+from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 
 from configs import settings
 from constants.redis import SIZE_LIMIT
@@ -12,7 +14,7 @@ from server.controllers.lesson import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
-from server.utils.etc import get_hashed, text_decode, text_encode
+from server.utils.etc import text_decode, text_encode
 from server.utils.exceptions import (
     FileAlreadyExistsException,
     ForbiddenProjectException,
@@ -55,7 +57,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)  # 자신이 속한 수업의 유저들
                 .filter(Participant.user_id != self.user_id)  # 자신 제외
                 .join(UserProject, UserProject.participant_id == Participant.id)  # 유저의 프로젝트
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)  # 유저의 권한
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.project_id == UserProject.id,
+                        ProjectViewer.viewer_id == self.my_participant.id,
+                    ),
+                    isouter=True,
+                )  # 유저의 권한
             )
         else:
             # 학생인 경우, ``ProjectViewer.viewer`` 값이 자기 자신인 레코드를 이용
@@ -72,8 +81,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.project_id == UserProject.id, isouter=True)
-                .filter(ProjectViewer.viewer_id == self.my_participant.id)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.project_id == UserProject.id,
+                        ProjectViewer.viewer_id == self.my_participant.id,
+                    ),
+                    isouter=True,
+                )
             )
             query = query.union(teacher_query)
 
@@ -81,6 +96,9 @@ class ProjectController(LessonUserController):
 
     def accessed_by(self):
         """Return user list who can access my project"""
+
+        if not self.my_project:
+            self.create_if_not_exists()
 
         if self.my_participant.is_teacher:
             # 선생인 경우, 전체 학생의 레코드 반환.
@@ -90,7 +108,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.user_id != self.user_id)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.viewer_id == Participant.id,
+                        ProjectViewer.project_id == self.my_project.id,
+                    ),
+                    isouter=True,
+                )
             )
         else:
             # 학생인 경우, ``ProjectViewer.project_id`` 값이 자신의 프로젝트인 레코드 이용
@@ -107,8 +132,14 @@ class ProjectController(LessonUserController):
                 .filter(Participant.course_id == self.course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
-                .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id, isouter=True)
-                .filter(ProjectViewer.project_id == self.my_project.id)
+                .join(
+                    ProjectViewer,
+                    and_(
+                        ProjectViewer.viewer_id == Participant.id,
+                        ProjectViewer.project_id == self.my_project.id,
+                    ),
+                    isouter=True,
+                )
             )
             query = query.union(teacher_query)
 
@@ -139,8 +170,11 @@ class ProjectController(LessonUserController):
         if row and row.permission == permission:
             return None
 
-        if not row:
-            row = ProjectViewer(project_id=self.my_project.id, viewer_id=target_id, permission=0)
+        try:
+            if not row:
+                row = ProjectViewer(project_id=self.my_project.id, viewer_id=target_id, permission=0)
+        except IntegrityError:  # No foreign key
+            return
 
         # 권한 변경, 저장
         diff_perm = row.permission ^ permission  # 1 on different bit
@@ -245,7 +279,7 @@ class ProjectFileController(LessonUserController):
         if check_perm:
             allowed = self._check_permission(check_perm, self.my_participant, target_ptc, target_proj)
             if not allowed:
-                raise ForbiddenProjectException("해당 유저에 대한 읽기 권한이 없습니다.")
+                raise ForbiddenProjectException(f"해당 유저에 대한 {PROJ_PERM.translate(check_perm)} 권한이 없습니다.")
 
         return target_ptc, target_proj
 
@@ -274,9 +308,15 @@ class ProjectFileController(LessonUserController):
                 )
                 target_proj = proj_ctrl.create_if_not_exists()
 
-                # 수업 템플릿 코드 적용
-                tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
-                tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
+                if not target_proj.template_applied:
+                    # 수업 템플릿 코드 적용
+                    tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
+                    tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
+
+                    target_proj.template_applied = True
+                    self.db.add(target_proj)
+                    self.db.commit()
+
             else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
                 raise ProjectNotFoundException("아직 강의에 참여하지 않은 유저입니다.")
         else:  # UserProject 가 있는 경우

@@ -2,6 +2,11 @@ class WSEvent:
     # Common
     ERROR = "ERROR"
 
+    # Subscription
+    SUBS_PARTICIPANT = "SUBS_PARTICIPANT"
+    UNSUBS_PARTICIPANT = "UNSUBS_PARTICIPANT"
+    SUBS_PARTICIPANT_LIST = "SUBS_PARTICIPANT_LIST"
+
     # Lesson
     INIT_LESSON = "INIT_LESSON"
     ALL_PARTICIPANT = "ALL_PARTICIPANT"
@@ -29,6 +34,10 @@ class WSEvent:
     FILE_SAVE = "FILE_SAVE"
 
 
+ROOM_TYPE = "room-{type}"  # session key to store room names to remember what rooms the user enterred.
+
+
 class Room:
-    PERSONAL_PTC = "ptc-{ptc_id}"  # Used to retrieve session id from participant id
+    PERSONAL_PTC = "{course_id}:{lesson_id}:{ptc_id}:self"  # Used to retrieve session id from participant id
+    SUBS_PTC = "{course_id}:{lesson_id}:{ptc_id}"  # Used to subscribe specific participant
     LESSON = "{course_id}:{lesson_id}"
