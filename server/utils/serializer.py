@@ -1,5 +1,5 @@
-from typing import Any
 import datetime
+from typing import Any
 
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 
@@ -40,7 +40,7 @@ def accessible_user(
     part: Participant,
     proj: UserProject,
     perm: ProjectViewer,
-    default_perm: int = 0,
+    default_perm: PROJ_PERM = 0,
 ) -> dict[str, Any]:
     """자신의/다른 유저의 접근 권한에 대한 데이터를 serialize
 

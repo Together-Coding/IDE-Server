@@ -92,7 +92,7 @@ async def unsubscribe_participant(sid: str, data: dict):
 
     for ptc_id in set(target):
         # 자신에 대해서는 구독 해제 불가
-        if ptc_id == await ws_session.get('participant_id'):
+        if ptc_id == await ws_session.get("participant_id"):
             continue
 
         room_name = Room.SUBS_PTC.format(
