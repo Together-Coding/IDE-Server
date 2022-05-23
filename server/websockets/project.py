@@ -1,4 +1,4 @@
-from constants.ws import ROOM_KEY, Room, WSEvent
+from constants.ws import ROOM_TYPE, Room, WSEvent
 from server import sio
 from server.controllers.project import PingController, ProjectController, ProjectFileController
 from server.helpers import sentry

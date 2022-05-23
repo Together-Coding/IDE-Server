@@ -34,7 +34,7 @@ class WSEvent:
     FILE_SAVE = "FILE_SAVE"
 
 
-ROOM_KEY = "room-{key}"  # session key to store room names to remember what rooms the user enterred.
+ROOM_TYPE = "room-{type}"  # session key to store room names to remember what rooms the user enterred.
 
 
 class Room:

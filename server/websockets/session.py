@@ -1,6 +1,6 @@
 from typing import Any
 
-from constants.ws import Room, ROOM_KEY
+from constants.ws import Room, ROOM_TYPE
 from server import sio
 
 
@@ -68,7 +68,7 @@ async def enter_room(sid: str, room_type: str, new_room: str, limit: int | None 
     """``room_type``별 최대 limit 개의 room 에 접속한다."""
 
     # 기존에 접속한 room 을 가져온다.
-    room_key = ROOM_KEY.format(key=room_type)
+    room_key = ROOM_TYPE.format(type=room_type)
     rooms: list = await get(sid, room_key) or []
 
     # If already enterred, do nothing.
@@ -109,5 +109,5 @@ async def exit_room(sid: str, room_type: str, room: str):
 
 
 async def get_room_list(sid: str, room_type: str) -> list[str]:
-    room_type = ROOM_KEY.format(key=room_type)
+    room_type = ROOM_TYPE.format(type=room_type)
     return (await get(sid, key=room_type)) or []
