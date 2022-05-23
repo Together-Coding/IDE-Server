@@ -1,11 +1,14 @@
 from constants.ws import Room, WSEvent
 from server import sio
 from server.controllers.project import ProjectController
+from server.controllers.course import CourseUserController
+from server.controllers.lesson import LessonBaseController
+from server.helpers.db import get_db
+from server.utils import serializer
 from server.utils.exceptions import AccessCourseFailException
 from server.utils.response import ws_error_response
-from server.helpers.db import get_db
 from server.websockets import session as ws_session
-from server.websockets.decorators import requires
+from server.websockets.decorators import in_lesson, requires
 
 
 @sio.on(WSEvent.INIT_LESSON)
@@ -67,3 +70,17 @@ async def init_lesson(sid: str, data: dict):
         await ws_session.enter_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, new_room=room_name)
 
     await sio.emit(WSEvent.INIT_LESSON, data={"success": True}, to=sid)
+
+
+@sio.on(WSEvent.ALL_PARTICIPANT)
+@in_lesson
+async def get_all_participant(sid: str, data: None = None):
+    lesson_ctrl = LessonBaseController(
+        course_id=await ws_session.get(sid, "course_id"),
+        lesson_id=await ws_session.get(sid, "lesson_id"),
+        db=get_db(),
+    )
+
+    ptc_data = lesson_ctrl.get_all_participant()
+    data = [serializer.participant(ptc, proj) for ptc, proj in ptc_data]
+    await sio.emit(WSEvent.ALL_PARTICIPANT, data=data, to=sid)
