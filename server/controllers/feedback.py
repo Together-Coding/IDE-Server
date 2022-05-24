@@ -21,7 +21,6 @@ class FeedbackController(ProjectController):
             self.db.query(UserProject)
             # CodeReference
             .join(CodeReference, CodeReference.project_id == UserProject.id)
-            .filter(CodeReference.deleted.is_(False))
             # Feedback
             .join(Feedback, Feedback.code_ref_id == CodeReference.id)
             # Must have a permission
@@ -69,7 +68,6 @@ class FeedbackController(ProjectController):
             # CodeReference
             .filter(CodeReference.project_id == target_proj.id)
             .filter(CodeReference.file == filename)
-            .filter(CodeReference.deleted.is_(False))
             # Feedback
             .join(Feedback, Feedback.code_ref_id == CodeReference.id)
             # Must have a permission

@@ -13,7 +13,6 @@ class CodeReference(Base):
     project_id = Column(Integer, ForeignKey("user_projects.id"), nullable=False)
     file = Column(TEXT, nullable=True)
     line = Column(String(255), nullable=True)
-    deleted = Column(Boolean, nullable=False, default=False)
 
     project = relationship("UserProject", back_populates="code_references", uselist=False)
     feedbacks: list[Feedback] = relationship("Feedback")
