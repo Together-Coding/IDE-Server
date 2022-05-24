@@ -37,6 +37,7 @@ class Participant(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     role = Column(String(15), nullable=False)
     nickname = Column(String(60), nullable=False, default="")
+    active = Column(Boolean, nullable=False, default=False)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
     course: Course = relationship("Course", back_populates="participants", uselist=False)

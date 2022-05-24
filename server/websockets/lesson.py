@@ -35,8 +35,12 @@ async def init_lesson(sid: str, data: dict):
     if proj_ctrl.my_lesson is None:
         return await sio.emit(WSEvent.INIT_LESSON, ws_error_response("존재하지 않는 강의입니다."), to=sid)
 
-    # Participant ID 저장
     ptc = proj_ctrl.my_participant
+
+    # active 상태로 변경
+    await proj_ctrl.update_ptc_status(active=True)
+
+    # Participant ID 저장
     await ws_session.update(
         sid,
         {
