@@ -2,6 +2,7 @@ import datetime
 from typing import Any
 
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
+from server.models.feedback import CodeReference, Comment, Feedback
 
 
 def iso8601(dt: datetime.datetime):
@@ -81,4 +82,57 @@ def permission_modified(target_id: int, perm: ProjectViewer) -> dict[str, Any]:
         "permission": perm.permission,
         "added": perm.added,  # 추가된 권한
         "removed": perm.removed,  # 제거된 권한
+    }
+
+
+def code_ref(ref: CodeReference) -> dict[str, Any]:
+    """It would be better for performance to eager-load the chains of relationship"""
+
+    return {
+        "id": ref.id,
+        "projectId": ref.project_id,
+        "ownerId": ref.project.participant_id,
+        "ownerNickname": ref.project.participant.nickname,
+        "file": ref.file,
+        "line": ref.line,
+    }
+
+
+def code_ref_simple(ref: CodeReference) -> dict[str, Any]:
+    return {
+        "id": ref.id,
+        "file": ref.file,
+        "line": ref.line,
+    }
+
+
+def code_ref_from_feedback(feedback: Feedback) -> dict[str, Any]:
+    return code_ref(feedback.code_reference)
+
+
+def feedback(
+    feedback: Feedback,
+    write_ptc: Participant | None = None,
+    acl: list[int] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": feedback.id,
+        "refId": feedback.code_ref_id,
+        "ptcId": feedback.participant_id,
+        "nickname": write_ptc.nickname if write_ptc else feedback.participant.nickname,
+        "resolved": feedback.resolved,
+        "createdAt": iso8601(feedback.created_at),
+        "acl": acl,
+    }
+
+
+def comment(comment: Comment, writer_ptc: Participant | None = None) -> dict[str, Any]:
+    return {
+        "id": comment.id,
+        "ptcId": comment.participant_id,
+        "nickname": writer_ptc.nickname if writer_ptc else comment.participant.nickname,
+        "content": comment.content,
+        "createdAt": iso8601(comment.created_at),
+        "updatedAt": iso8601(comment.updated_at),
+        "deleted": comment.deleted,
     }

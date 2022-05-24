@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlalchemy import DATETIME, TEXT, Boolean, Column, ForeignKey, Integer, PrimaryKeyConstraint, String
 from sqlalchemy.orm import relationship
 
@@ -14,8 +15,8 @@ class CodeReference(Base):
     line = Column(String(255), nullable=True)
     deleted = Column(Boolean, nullable=False, default=False)
 
-    project = relationship("UserProject", back_populates="code_references")
-    feedbacks = relationship("Feedback")
+    project = relationship("UserProject", back_populates="code_references", uselist=False)
+    feedbacks: list[Feedback] = relationship("Feedback")
 
 
 class Feedback(Base):
@@ -27,9 +28,10 @@ class Feedback(Base):
     resolved = Column(Boolean, nullable=False, default=False)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
-    code_reference = relationship("CodeReference", back_populates="feedbacks")
-    viewer_map = relationship("FeedbackViewerMap")
-    comments = relationship("Comment")
+    code_reference: CodeReference = relationship("CodeReference", back_populates="feedbacks", uselist=False)
+    viewer_map: list[FeedbackViewerMap] = relationship("FeedbackViewerMap")
+    comments: list[Comment] = relationship("Comment")
+    participant = relationship("Participant", uselist=False)
 
 
 class FeedbackViewerMap(Base):
@@ -40,7 +42,7 @@ class FeedbackViewerMap(Base):
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     valid = Column(Boolean, nullable=False, default=True)
 
-    feedback = relationship("Feedback", back_populates="viewer_map")
+    feedback: Feedback = relationship("Feedback", back_populates="viewer_map", uselist=False)
 
 
 class Comment(Base):
@@ -50,8 +52,10 @@ class Comment(Base):
     feedback_id = Column(Integer, ForeignKey("feedbacks.id"), nullable=False)
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     content = Column(TEXT, nullable=False, default="")
-    deleted = Column(Boolean, nullable=False, default=True)
+    deleted = Column(Boolean, nullable=False, default=False)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     updated_at = Column(DATETIME, nullable=False, default=utc_dt_now, onupdate=utc_dt_now)
 
-    feedback = relationship("Feedback", back_populates="comments")
+    feedback: Feedback = relationship("Feedback", back_populates="comments", uselist=False)
+    participant = relationship("Participant", uselist=False)
+    
