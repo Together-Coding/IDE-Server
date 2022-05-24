@@ -200,7 +200,7 @@ class FeedbackController(ProjectController):
         self.db.add(comment)
 
         # Create ACL record
-        acl.append(owner_id)
+        acl.extend([owner_id, self.my_participant.id])
         acl_ptcs = (
             self.db.query(Participant)
             .filter(Participant.course_id == self.course_id)
@@ -259,8 +259,8 @@ class FeedbackController(ProjectController):
 
         # Make sure the project owner has permission
         owner_id = feedback.code_reference.project.participant_id
-        new_acl.append(owner_id)
-        if acl_valid_ptc != new_acl:
+        new_acl.extend([owner_id, self.my_participant.id])
+        if set(acl_valid_ptc) != set(new_acl):
             acl_added_ptc = set(new_acl) - acl_valid_ptc
             acl_removed_ptc = acl_valid_ptc - set(new_acl)
             result_acl = list(acl_valid_ptc - acl_removed_ptc)  # First, not changed acls

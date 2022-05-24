@@ -122,7 +122,7 @@ def feedback(
         "nickname": write_ptc.nickname if write_ptc else feedback.participant.nickname,
         "resolved": feedback.resolved,
         "createdAt": iso8601(feedback.created_at),
-        "acl": acl,
+        "acl": acl or [],
     }
 
 

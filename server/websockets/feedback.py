@@ -87,7 +87,6 @@ async def add_feedback(sid: str, data: dict):
         owner_id = ref["ownerId"]
         filename = ref["file"]
         line = ref["line"]
-        my_ptc_id = await ws_session.get(sid, "participant_id")
 
         # Logic
         fb_ctrl = await FeedbackController.from_session(sid, get_db())
@@ -104,9 +103,7 @@ async def add_feedback(sid: str, data: dict):
         }
 
         # Send to participants
-        _acl = set(acl)
-        _acl.add(my_ptc_id)
-        for ptc_id in _acl:
+        for ptc_id in acl:
             target_sid = ws_session.get_ptc_sid(fb_ctrl.course_id, fb_ctrl.lesson_id, ptc_id)
             if target_sid:
                 await sio.emit(WSEvent.FEEDBACK_ADD, data=data, to=target_sid)
