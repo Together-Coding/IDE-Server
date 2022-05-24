@@ -43,6 +43,14 @@ class ProjectController(LessonUserController):
         if not self.my_project:
             self._project = UserProject(lesson_id=self.lesson_id, participant_id=self.my_participant.id, active=True)
             self.db.add(self._project)
+            self.db.flush()
+
+            # 수업 템플릿 코드 적용
+            tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
+            tmpl_ctrl.apply_to_user_project(self.my_participant, self.my_project.lesson)
+
+            self.my_project.template_applied = True
+            self.db.add(self.my_project)
             self.db.commit()
 
         return self.my_project
@@ -308,16 +316,6 @@ class ProjectFileController(LessonUserController):
                     db=self.db,
                 )
                 target_proj = proj_ctrl.create_if_not_exists()
-
-                if not target_proj.template_applied:
-                    # 수업 템플릿 코드 적용
-                    tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
-                    tmpl_ctrl.apply_to_user_project(target_ptc, target_proj.lesson)
-
-                    target_proj.template_applied = True
-                    self.db.add(target_proj)
-                    self.db.commit()
-
             else:  # 다른 유저의 생성되지 않은 프로젝트: get_target_info 에서 이미 처리됨
                 raise ProjectNotFoundException("아직 강의에 참여하지 않은 유저입니다.")
         else:  # UserProject 가 있는 경우
