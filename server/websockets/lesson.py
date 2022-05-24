@@ -73,7 +73,15 @@ async def init_lesson(sid: str, data: dict):
         )
         await ws_session.enter_room(sid, room_type=WSEvent.SUBS_PARTICIPANT, new_room=room_name)
 
-    await sio.emit(WSEvent.INIT_LESSON, data={"success": True}, to=sid)
+    await sio.emit(
+        WSEvent.INIT_LESSON,
+        data={
+            "ptcId": ptc.id,
+            'nickname': ptc.nickname,
+            'is_teacher': ptc.is_teacher,
+        },
+        to=sid,
+    )
 
 
 @sio.on(WSEvent.ALL_PARTICIPANT)
