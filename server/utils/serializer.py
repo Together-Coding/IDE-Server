@@ -24,15 +24,15 @@ def participant(ptc: Participant, proj: UserProject) -> dict[str, Any]:
         "id": ptc.id,
         "is_teacher": ptc.is_teacher,
         "nickname": ptc.nickname,
+        "active": ptc.active,
+        'project': None
     }
+
     if proj:
         data["project"] = {
             "id": proj.id,
-            "active": proj.active,
             "created_at": iso8601(proj.created_at),
         }
-    else:
-        data["project"] = None
 
     return data
 

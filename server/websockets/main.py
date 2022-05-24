@@ -3,8 +3,10 @@ from typing import Any
 from socketio.exceptions import ConnectionRefusedError
 
 from server import sio
+from server.controllers.lesson import LessonUserController
 from server.controllers.user import AuthController
 from server.websockets import session as ws_session
+from server.helpers.db import get_db
 
 
 @sio.event
@@ -36,7 +38,19 @@ async def connect(sid: str, environ: dict, auth: dict[str, Any]):
 
 @sio.event
 async def disconnect(sid: str):
+    """Disconnected
+
+    If the user initialized a lesson with `INIT_LESSON` and is in active status,
+    toggle the flag and broadcast its change.
+    """
+
     print("disconnect:", sid)
+    try:
+        # Change status and broadcast message
+        ctrl = await LessonUserController.from_session(sid, get_db())
+        await ctrl.update_ptc_status(active=False)
+    except:
+        pass
 
 
 @sio.on("echo")

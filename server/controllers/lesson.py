@@ -1,10 +1,13 @@
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from constants.ws import WSEvent, Room
+from server import sio
 from server.controllers.course import CourseBaseController, CourseUserController
 from server.controllers.file import RedisController, S3Controller
 from server.models.course import Lesson, Participant, UserProject
 from server.websockets import session as ws_session
+from server.utils import serializer
 
 
 class LessonBaseController(CourseBaseController):
@@ -98,3 +101,22 @@ class LessonUserController(CourseUserController, LessonBaseController):
             )
 
         return self._project
+
+    async def update_ptc_status(self, active: bool):
+        """Update Participant.active
+
+        1. Change ``active``
+        2. If status changed, send broadcast message
+        """
+
+        toggled = self.my_participant.active != active
+
+        if toggled:
+            self.my_participant.active = active
+            self.db.add(self.my_participant)
+            self.db.commit()
+
+            data = serializer.participant(self.my_participant, self.my_project)
+            room = Room.LESSON.format(course_id=self.course_id, lesson_id=self.lesson_id)
+
+            await sio.emit(WSEvent.PARTICIPANT_STATUS, data=data, room=room)
