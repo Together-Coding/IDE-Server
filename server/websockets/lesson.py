@@ -76,7 +76,6 @@ async def init_lesson(sid: str, data: dict):
     await sio.emit(
         WSEvent.INIT_LESSON,
         data={
-            "success": True,
             "ptcId": ptc.id,
             'nickname': ptc.nickname,
             'is_teacher': ptc.is_teacher,
