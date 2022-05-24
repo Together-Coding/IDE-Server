@@ -90,7 +90,7 @@ async def update_last_cursor(sid: str, data: dict):
         await sio.emit(
             WSEvent.CURSOR_MOVE,
             {
-                "userId": await ws_session.get(sid, "user_id"),
+                "ptcId":  await ws_session.get(sid, "participant_id"),
                 "nickname": await ws_session.get(sid, "nickname"),
                 "fileInfo": {
                     "ownerId": owner_id,
