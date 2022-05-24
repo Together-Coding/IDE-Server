@@ -19,6 +19,7 @@ class FeedbackController(ProjectController):
 
         rows: list[UserProject] = (
             self.db.query(UserProject)
+            .filter(UserProject.lesson_id==self.lesson_id)
             # CodeReference
             .join(CodeReference, CodeReference.project_id == UserProject.id)
             # Feedback
