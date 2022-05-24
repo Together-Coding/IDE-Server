@@ -34,6 +34,8 @@ class PingController(LessonUserController):
 
         self.my_project.recent_activity_at = utc_dt_now()
         self.my_project.active = True
+
+        self.update_ptc_status(active=True)
         self.db.commit()
 
 
