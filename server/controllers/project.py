@@ -14,6 +14,7 @@ from server.controllers.lesson import LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
+from server.models.feedback import CodeReference
 from server.utils.etc import text_decode, text_encode
 from server.utils.exceptions import (
     FileAlreadyExistsException,
@@ -405,6 +406,18 @@ class ProjectFileController(LessonUserController):
                 e.error = "이미 존재하는 폴더입니다."
             raise e
 
+    def get_related_code_ref(self, project_id: int, type_: str, name: str) -> list[CodeReference]:
+        query = (
+            self.db.query(CodeReference)
+            .filter(CodeReference.project_id == project_id)
+            .filter(CodeReference.deleted.is_(False))
+        )
+
+        if type_ == "directory":
+            return query.filter(CodeReference.file.like(f"{name}/%")).all()  # Use `like` clause for directory
+        else:
+            return query.filter(CodeReference.file == name).all()
+
     def update_file_or_dir_name(self, owner_id: int, type_: str, name: str, rename: str):
         """Update name of file or directory at the owner's project.
 
@@ -415,7 +428,9 @@ class ProjectFileController(LessonUserController):
         """
 
         # 권한 확인
-        self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+        _, target_proj = self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+
+        code_refs = self.get_related_code_ref(target_proj.id, type_, name)
 
         if type_ == "directory":
             # 디렉터리 내부 파일명 모두 변경
@@ -431,6 +446,12 @@ class ProjectFileController(LessonUserController):
                 if filename.startswith(name):
                     new_filename = filename.replace(name, rename, 1)
                     self.redis_ctrl.rename_file(filename=filename, new_filename=new_filename, ptc_id=owner_id)
+
+            # code_references 참조 위치 변경
+            for code_ref in code_refs:
+                code_ref.file = code_ref.file.replace(name, rename, 1)
+                self.db.add(code_ref)
+
         else:
             # 해당 파일명 변경
             if not self.redis_ctrl.has_file(filename=name, ptc_id=owner_id, encoded=False):
@@ -440,9 +461,14 @@ class ProjectFileController(LessonUserController):
                 raise FileAlreadyExistsException("같은 이름의 파일이 이미 존재합니다.")
 
             self.redis_ctrl.rename_file(filename=name, new_filename=rename, ptc_id=owner_id)
-            self.redis_ctrl.mark_as_directory(filename=filename, ptc_id=owner_id)
+            self.redis_ctrl.mark_as_directory(filename=rename, ptc_id=owner_id)
 
-        # TODO: code_references 참조 위치 변경
+            # code_references 참조 위치 변경
+            for code_ref in code_refs:
+                code_ref.file = rename
+                self.db.add(code_ref)
+
+        self.db.commit()
 
     def delete_file_or_dir(self, owner_id: int, type_: str, name: str):
         """Delete file or directory
@@ -454,7 +480,7 @@ class ProjectFileController(LessonUserController):
         """
 
         # 권한 확인
-        self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
+        _, target_proj = self.get_target_info(owner_id, PROJ_PERM.READ | PROJ_PERM.WRITE)
 
         if type_ == "directory":
             # 해당 디렉터리 내부 파일 모두 삭제
@@ -483,7 +509,13 @@ class ProjectFileController(LessonUserController):
             # Delete file key
             self.redis_ctrl.delete_file(filename=enc_filename, ptc_id=owner_id, encoded=True)
 
-        # TODO: code_references 참조 수정
+        # code_references 참조 수정
+        code_refs = self.get_related_code_ref(target_proj.id, type_, name)
+        for code_ref in code_refs:
+            code_ref.deleted = True
+            self.db.add(code_ref)
+
+        self.db.commit()
 
     def file_save(self, owner_id: int, file: str, content: str):
         """Save file content into Redis

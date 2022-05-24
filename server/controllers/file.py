@@ -1,17 +1,17 @@
-from io import IOBase
 import os
 import tempfile
 import zipfile
-from typing import Callable
+from io import IOBase
 
 from botocore.errorfactory import ClientError
-from redis.client import StrictRedis, Pipeline
+from redis.client import Pipeline, StrictRedis
 
+from configs import settings
 from constants.redis import SIZE_LIMIT, RedisKey
 from constants.s3 import S3Key
 from server.helpers import s3, sentry
 from server.helpers.redis_ import r
-from server.utils.etc import get_hashed, text_encode
+from server.utils.etc import get_hashed, text_decode, text_encode
 from server.utils.exceptions import FileAlreadyExistsException, ProjectFileException
 
 
@@ -311,7 +311,6 @@ class RedisController:
 
         self.r.zadd(list_key, {filename: size})
 
-
     def set_file_size(
         self,
         filename: str,
@@ -372,6 +371,10 @@ class RedisController:
 
         data = self.r.zscan_iter(list_key, score_cast_func=int)
         enc_file_names = [filename for filename, _ in data]  # remove score values
+
+        if settings.DEBUG:
+            for _en in enc_file_names:
+                print(text_decode(_en))
 
         if not check_content:
             return enc_file_names
