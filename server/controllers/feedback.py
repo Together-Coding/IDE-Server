@@ -162,7 +162,7 @@ class FeedbackController(ProjectController):
         filename: str,
         line: str,
         acl: list[int],
-        comment: str,
+        content: str,
     ) -> tuple[Feedback, Comment]:
         """Create a feedback with first comment attached
 
@@ -171,7 +171,7 @@ class FeedbackController(ProjectController):
             filename (str): filename
             line (str): code ref line.
             acl (list[int]): participant IDs who can see this feedback
-            comment (str): content of the created feedback comment
+            content (str): content of the created feedback comment
 
         TODO: file and line existence check
         """
@@ -194,7 +194,7 @@ class FeedbackController(ProjectController):
         comment = Comment(
             feedback_id=feedback.id,
             participant_id=self.my_participant.id,
-            content=comment,
+            content=content,
         )
         self.db.add(comment)
 
@@ -281,8 +281,9 @@ class FeedbackController(ProjectController):
 
             # Revoke
             for ptc_id in acl_removed_ptc:
-                acls[ptc_id].valid = False
-                self.db.add(acls[ptc_id])
+                if ptc_id in acls.keys():
+                    acls[ptc_id].valid = False
+                    self.db.add(acls[ptc_id])
 
         # Update resolved status
         if new_resolved != feedback.resolved:
