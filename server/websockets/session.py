@@ -1,6 +1,6 @@
 from typing import Any
 
-from constants.ws import Room, ROOM_TYPE
+from constants.ws import ROOM_TYPE, Room
 from server import sio
 
 

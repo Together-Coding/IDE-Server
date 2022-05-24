@@ -4,7 +4,9 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     DEBUG: bool = False
     SENTRY_DSN: str = ""
+    
     SQLALCHEMY_DATABASE_URL: str = ""
+    DB_ECHO: bool = False
 
     REDIS_URL: str = ""
     REDIS_DB: int = 0

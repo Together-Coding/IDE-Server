@@ -92,7 +92,7 @@ async def unsubscribe_participant(sid: str, data: dict):
 
     for ptc_id in set(target):
         # 자신에 대해서는 구독 해제 불가
-        if ptc_id == await ws_session.get('participant_id'):
+        if ptc_id == await ws_session.get("participant_id"):
             continue
 
         room_name = Room.SUBS_PTC.format(
@@ -177,7 +177,8 @@ async def modify_project_permission(sid: str, data=None):
                 viewer_sid = ws_session.get_ptc_sid(
                     course_id=proj_ctrl.course_id, lesson_id=proj_ctrl.lesson_id, ptc_id=row.viewer_id
                 )
-                await ws_session.exit_room(viewer_sid, room_type=WSEvent.SUBS_PARTICIPANT, room=my_room_name)
+                if viewer_sid:
+                    await ws_session.exit_room(viewer_sid, room_type=WSEvent.SUBS_PARTICIPANT, room=my_room_name)
 
             modified_noti.append(serializer.permission_modified(proj_ctrl.my_participant.id, row))
         except KeyError:

@@ -42,6 +42,8 @@ class Participant(Base):
     course: Course = relationship("Course", back_populates="participants", uselist=False)
     user = relationship("User", back_populates="participation", uselist=False)
     project: UserProject = relationship("UserProject", uselist=False)
+    feedbacks = relationship("Feedback")
+    comments = relationship("Comment")
 
     KEY_TEACHER = "TEACHER"
     KEY_STUDENT = "STUDENT"

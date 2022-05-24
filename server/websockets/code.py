@@ -43,7 +43,7 @@ async def broadcast_file_mod(sid: str, data: dict):
         await sio.emit(
             WSEvent.FILE_MOD,
             {
-                "userId": await ws_session.get(sid, "user_id"),
+                "ptcId": await ws_session.get(sid, "participant_id"),
                 "nickname": await ws_session.get(sid, "nickname"),
                 "ownerId": owner_id,
                 "file": data.get("file"),

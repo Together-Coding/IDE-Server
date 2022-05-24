@@ -41,5 +41,13 @@ class FileAlreadyExistsException(FileCRUDException):
 
 class TotalSizeExceededException(BaseException):
     """Total file size is greater than limit"""
+    pass
 
+class FeedbackException(BaseException):
+    pass
+
+class FeedbackNotFoundException(FeedbackException):
+    pass
+
+class FeedbackNotAuthException(FeedbackException):
     pass

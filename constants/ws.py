@@ -33,6 +33,13 @@ class WSEvent:
     FILE_MOD = "FILE_MOD"
     FILE_SAVE = "FILE_SAVE"
 
+    # Feedback
+    FEEDBACK_LIST = "FEEDBACK_LIST"
+    FEEDBACK_ADD = "FEEDBACK_ADD"
+    FEEDBACK_MOD = "FEEDBACK_MOD"
+    FEEDBACK_COMMENT = "FEEDBACK_COMMENT"
+    FEEDBACK_COMMENT_MOD = "FEEDBACK_COMMENT_MOD"
+
 
 ROOM_TYPE = "room-{type}"  # session key to store room names to remember what rooms the user enterred.
 
