@@ -4,7 +4,12 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from configs import settings
 
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, echo=settings.DB_ECHO)
+engine = create_engine(
+    settings.SQLALCHEMY_DATABASE_URL,
+    echo=settings.DB_ECHO,
+    pool_size=5,
+    max_overflow=30,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -13,7 +18,7 @@ class DefaultBase(object):
         try:
             return f'{type(self).__name__} id={getattr(self, "id")}'
         except AttributeError:
-            return f'{type(self).__name__}'
+            return f"{type(self).__name__}"
 
 
 Base = declarative_base(cls=DefaultBase)
@@ -27,5 +32,10 @@ def get_db_dep():
     finally:
         db.close()
 
+
 def get_db() -> Session:
-    return next(get_db_dep())
+    db = next(get_db_dep())
+    try:
+        return db
+    finally:
+        db.close()
