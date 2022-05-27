@@ -23,7 +23,7 @@ def create_websocket(app: FastAPI, cors_allowed_origins: list | str):
         cors_allowed_origins=cors_allowed_origins,
         async_mode="asgi",
         client_manager=message_queue,
-        logger=settings.DEBUG,
-        engineio_logger=settings.DEBUG,
+        logger=settings.WS_DEBUG,
+        engineio_logger=settings.WS_DEBUG,
     )
     return sio, socketio.ASGIApp(sio, app)
