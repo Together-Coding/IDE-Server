@@ -1,8 +1,7 @@
 from constants.ws import Room, WSEvent
 from server import sio
-from server.controllers.project import ProjectController
-from server.controllers.course import CourseUserController
 from server.controllers.lesson import LessonBaseController
+from server.controllers.project import ProjectController
 from server.helpers.db import get_db
 from server.utils import serializer
 from server.utils.exceptions import AccessCourseFailException

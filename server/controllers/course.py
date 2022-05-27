@@ -1,10 +1,10 @@
-from server.controllers.base import BaseContoller
+from server.controllers.base import BaseController
 from server.models.course import Course, Participant
 from server.utils.exceptions import AccessCourseFailException
 from server.helpers.cache import course_cache
 
 
-class CourseBaseController(BaseContoller):
+class CourseBaseController(BaseController):
     def __init__(
         self,
         course_id: int,

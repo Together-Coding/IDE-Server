@@ -126,9 +126,9 @@ class ProjectController(LessonUserController):
     @lesson_cache.memoize(timeout=300)
     def _accessed_by(
         self,
-        course_id,
-        ptc_id,
-        project_id,
+        course_id: int,
+        ptc_id: int,
+        project_id: int | None,
         is_teacher: bool,
     ) -> list[Participant, UserProject, ProjectViewer]:
         """Return user list who can access my project"""
@@ -203,7 +203,7 @@ class ProjectController(LessonUserController):
 
         permission = int(permission) & PROJ_PERM.ALL
 
-        row = (
+        row: ProjectViewer | None = (
             self.db.query(ProjectViewer)
             .filter(ProjectViewer.project_id == self.my_project.id)
             .filter(ProjectViewer.viewer_id == target_id)
