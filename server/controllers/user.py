@@ -3,10 +3,10 @@ import json
 import requests
 
 from constants.common import API_HEADER, API_URL
-from server.controllers.base import BaseContoller
+from server.controllers.base import BaseController
 
 
-class AuthController(BaseContoller):
+class AuthController(BaseController):
     @staticmethod
     def verify_token(token: str) -> tuple[bool, dict]:
         """Verify the given JWT token by asking API server. Return True if verified, otherwise, False"""
