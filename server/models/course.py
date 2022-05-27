@@ -24,7 +24,7 @@ class Course(Base):
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     updated_at = Column(DATETIME, nullable=True, onupdate=utc_dt_now)
 
-    participants: list[Participant] = relationship("Participant")
+    participants: list[Participant] = relationship("Participant", back_populates="course")
     lessons: list[Lesson] = relationship("Lesson")
 
 
@@ -43,8 +43,8 @@ class Participant(Base):
     course: Course = relationship("Course", back_populates="participants", uselist=False)
     user = relationship("User", back_populates="participation", uselist=False)
     project: UserProject = relationship("UserProject", uselist=False)
-    feedbacks = relationship("Feedback")
-    comments = relationship("Comment")
+    feedbacks = relationship("Feedback", back_populates="participant")
+    comments = relationship("Comment", back_populates="participant")
 
     KEY_TEACHER = "TEACHER"
     KEY_STUDENT = "STUDENT"

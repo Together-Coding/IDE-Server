@@ -29,8 +29,13 @@ class FeedbackController(ProjectController):
             # Feedback
             .join(Feedback, Feedback.code_ref_id == CodeReference.id)
             # Must have a permission
-            .join(FeedbackViewerMap, FeedbackViewerMap.feedback_id == Feedback.id)
-            .filter(FeedbackViewerMap.participant_id == self.my_participant.id)
+            .join(
+                FeedbackViewerMap,
+                and_(
+                    FeedbackViewerMap.participant_id == self.my_participant.id,
+                    FeedbackViewerMap.feedback_id == Feedback.id,
+                ),
+            )
             # Outer join Comment
             .join(Comment, and_(Comment.feedback_id == Feedback.id, Comment.deleted.is_(False)), isouter=True)
             .options(joinedload(UserProject.participant))
