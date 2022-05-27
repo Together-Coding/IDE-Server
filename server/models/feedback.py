@@ -33,7 +33,7 @@ class Feedback(Base):
     code_reference: CodeReference = relationship("CodeReference", back_populates="feedbacks", uselist=False)
     viewer_map: list[FeedbackViewerMap] = relationship("FeedbackViewerMap")
     comments: list[Comment] = relationship("Comment")
-    participant = relationship("Participant", uselist=False)
+    participant = relationship("Participant", uselist=False, back_populates="feedbacks")
 
 
 class FeedbackViewerMap(Base):
