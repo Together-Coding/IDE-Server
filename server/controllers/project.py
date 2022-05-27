@@ -31,7 +31,13 @@ from server.utils.time_utils import utc_dt_now
 class PingController(LessonUserController):
     async def update_recent_activity(self):
         if not self.my_project:
-            return
+            proj_ctrl = ProjectController(
+                course_id=self.course_id,
+                lesson_id=self.lesson_id,
+                user_id=self.user_id,
+                db=self.db,
+            )
+            self._project = proj_ctrl.create_if_not_exists()
 
         self.my_project.recent_activity_at = utc_dt_now()
         self.my_project.active = True

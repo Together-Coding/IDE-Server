@@ -76,8 +76,8 @@ async def init_lesson(sid: str, data: dict):
         WSEvent.INIT_LESSON,
         data={
             "ptcId": ptc.id,
-            'nickname': ptc.nickname,
-            'is_teacher': ptc.is_teacher,
+            "nickname": ptc.nickname,
+            "is_teacher": ptc.is_teacher,
         },
         to=sid,
     )
