@@ -29,14 +29,14 @@ from server.utils.time_utils import utc_dt_now
 
 
 class PingController(LessonUserController):
-    def update_recent_activity(self):
+    async def update_recent_activity(self):
         if not self.my_project:
             return
 
         self.my_project.recent_activity_at = utc_dt_now()
         self.my_project.active = True
 
-        self.update_ptc_status(active=True)
+        await self.update_ptc_status(active=True)
         self.db.commit()
 
 
