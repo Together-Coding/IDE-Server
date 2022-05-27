@@ -4,15 +4,16 @@ import io
 import os
 
 from sqlalchemy import and_
-from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from configs import settings
 from constants.redis import SIZE_LIMIT
 from constants.s3 import S3Key
-from server.controllers.lesson import LessonUserController
+from server.controllers.lesson import LessonBaseController, LessonUserController
 from server.controllers.template import LessonTemplateController
 from server.helpers import s3
+from server.helpers.cache import ptc_cache, lesson_cache
 from server.models.course import PROJ_PERM, Participant, ProjectViewer, UserProject
 from server.models.feedback import CodeReference
 from server.utils.etc import text_decode, text_encode
@@ -55,24 +56,34 @@ class ProjectController(LessonUserController):
             self.db.add(self.my_project)
             self.db.commit()
 
+            lesson_cache.delete_memoize(LessonBaseController.get_all_participant, self)
+            lesson_cache.delete_memoize(LessonUserController.get_proj_by_ptc_id, self, self.my_participant.id)
+            lesson_cache.delete_memoize(ProjectFileController._ptc_info, self, self.my_participant.id)
+
         return self.my_project
 
-    def accessible_to(self) -> list[tuple[Participant, UserProject, ProjectViewer]]:
+    @lesson_cache.memoize(timeout=300)
+    def _accessible_to(
+        self,
+        course_id: int,
+        ptc_id: int,
+        is_teacher: bool,
+    ) -> list[tuple[Participant, UserProject, ProjectViewer]]:
         """Return user's accessible project owner list."""
 
-        if self.my_participant.is_teacher:
+        if is_teacher:
             # 선생인 경우, 전체 학생의 레코드 반환
             # ProjectViewer 에서 권한을 명시할 수 있으므로, 이 테이블을 join
             query = (
                 self.db.query(Participant, UserProject, ProjectViewer)
-                .filter(Participant.course_id == self.course_id)  # 자신이 속한 수업의 유저들
-                .filter(Participant.user_id != self.user_id)  # 자신 제외
+                .filter(Participant.course_id == course_id)  # 자신이 속한 수업의 유저들
+                .filter(Participant.id != ptc_id)  # 자신 제외
                 .join(UserProject, UserProject.participant_id == Participant.id)  # 유저의 프로젝트
                 .join(
                     ProjectViewer,
                     and_(
                         ProjectViewer.project_id == UserProject.id,
-                        ProjectViewer.viewer_id == self.my_participant.id,
+                        ProjectViewer.viewer_id == ptc_id,
                     ),
                     isouter=True,
                 )  # 유저의 권한
@@ -83,20 +94,20 @@ class ProjectController(LessonUserController):
                 self.db.query(Participant, UserProject, ProjectViewer)
                 .join(UserProject, UserProject.participant_id == Participant.id)  # 유저의 프로젝트
                 .join(ProjectViewer, ProjectViewer.project_id == UserProject.id)  # 유저의 권한
-                .filter(ProjectViewer.viewer_id == self.my_participant.id)  # 자신이 볼 수 있는 프로젝트
+                .filter(ProjectViewer.viewer_id == ptc_id)  # 자신이 볼 수 있는 프로젝트
             )
 
             # 학생인 경우, 항상 선생을 포함한다.
             teacher_query = (
                 self.db.query(Participant, UserProject, ProjectViewer)
-                .filter(Participant.course_id == self.course_id)
+                .filter(Participant.course_id == course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
                 .join(
                     ProjectViewer,
                     and_(
                         ProjectViewer.project_id == UserProject.id,
-                        ProjectViewer.viewer_id == self.my_participant.id,
+                        ProjectViewer.viewer_id == ptc_id,
                     ),
                     isouter=True,
                 )
@@ -105,25 +116,39 @@ class ProjectController(LessonUserController):
 
         return query.all()
 
-    def accessed_by(self):
+    def accessible_to(self) -> list[tuple[Participant, UserProject, ProjectViewer]]:
+        return self._accessible_to(
+            self.course_id,
+            self.my_participant.id,
+            self.my_participant.is_teacher,
+        )
+
+    @lesson_cache.memoize(timeout=300)
+    def _accessed_by(
+        self,
+        course_id,
+        ptc_id,
+        project_id,
+        is_teacher: bool,
+    ) -> list[Participant, UserProject, ProjectViewer]:
         """Return user list who can access my project"""
 
-        if not self.my_project:
-            self.create_if_not_exists()
+        if not project_id:
+            return []
 
-        if self.my_participant.is_teacher:
+        if is_teacher:
             # 선생인 경우, 전체 학생의 레코드 반환.
             # ProjectViewer 에서 권한을 명시할 수 있으므로, 이 테이블을 join
             query = (
                 self.db.query(Participant, UserProject, ProjectViewer)
-                .filter(Participant.course_id == self.course_id)
-                .filter(Participant.user_id != self.user_id)
+                .filter(Participant.course_id == course_id)
+                .filter(Participant.id != ptc_id)
                 .join(UserProject, UserProject.participant_id == Participant.id)
                 .join(
                     ProjectViewer,
                     and_(
                         ProjectViewer.viewer_id == Participant.id,
-                        ProjectViewer.project_id == self.my_project.id,
+                        ProjectViewer.project_id == project_id,
                     ),
                     isouter=True,
                 )
@@ -134,20 +159,20 @@ class ProjectController(LessonUserController):
                 self.db.query(Participant, UserProject, ProjectViewer)
                 .join(UserProject, UserProject.participant_id == Participant.id)
                 .join(ProjectViewer, ProjectViewer.viewer_id == Participant.id)
-                .filter(ProjectViewer.project_id == self.my_project.id)  # 자신의 프로젝트의 viewer
+                .filter(ProjectViewer.project_id == project_id)  # 자신의 프로젝트의 viewer
             )
 
             # 학생인 경우, 항상 선생을 포함한다.
             teacher_query = (
                 self.db.query(Participant, UserProject, ProjectViewer)
-                .filter(Participant.course_id == self.course_id)
+                .filter(Participant.course_id == course_id)
                 .filter(Participant.role == Participant.KEY_TEACHER)
                 .join(UserProject, UserProject.participant_id == Participant.id)
                 .join(
                     ProjectViewer,
                     and_(
                         ProjectViewer.viewer_id == Participant.id,
-                        ProjectViewer.project_id == self.my_project.id,
+                        ProjectViewer.project_id == project_id,
                     ),
                     isouter=True,
                 )
@@ -155,6 +180,14 @@ class ProjectController(LessonUserController):
             query = query.union(teacher_query)
 
         return query.all()
+
+    def accessed_by(self) -> list[Participant, UserProject, ProjectViewer]:
+        return self._accessed_by(
+            self.course_id,
+            self.my_participant.id,
+            self.my_project.id if self.my_project else None,
+            self.my_participant.is_teacher,
+        )
 
     def modify_project_permission(self, target_id: int, permission: int) -> None | ProjectViewer:
         """Create/Modify user's ProjectViewer record.
@@ -216,6 +249,37 @@ class ProjectController(LessonUserController):
 
         row.added = added
         row.removed = removed
+
+        # Invalidate cache related to the accessibility from the target user to me
+        lesson_cache.delete_memoize(
+            ProjectController._accessed_by,
+            self,
+            self.course_id,
+            self.my_participant.id,
+            self.my_project.id,
+            self.my_participant.is_teacher,
+        )
+
+        # Invalidate cache related to the accessibility of the target user
+        target_ptc = self.get_ptc(target_id)
+        lesson_cache.delete_memoize(
+            ProjectController._accessible_to,
+            self,
+            self.course_id,
+            target_id,
+            target_ptc.is_teacher,
+        )
+
+        lesson_cache.delete_memoize_with_ignore(
+            ProjectFileController._check_permission,
+            ["check_perm"],
+            self,  # alternative to ProjectFileController object
+            PROJ_PERM.ALL,  # ignored
+            target_ptc,
+            self.my_participant,
+            self.my_project,
+        )
+
         return row
 
 
@@ -225,8 +289,13 @@ class ProjectFileController(LessonUserController):
 
         return self.redis_ctrl.get_file_list(ptc_id=target_ptc.id, check_content=True)
 
+    @lesson_cache.memoize(timeout=60, ignore_args=["check_perm"])
     def _check_permission(
-        self, check_perm: PROJ_PERM, viewer: Participant, target_ptc: Participant, target_proj: UserProject
+        self,
+        check_perm: PROJ_PERM,
+        viewer: Participant,
+        target_ptc: Participant,
+        target_proj: UserProject,
     ):
         perm: ProjectViewer = (
             self.db.query(ProjectViewer)
@@ -248,6 +317,7 @@ class ProjectFileController(LessonUserController):
 
         return allowed
 
+    @lesson_cache.memoize(timeout=60)
     def _ptc_info(self, ptc_id: int) -> Participant:
         """Return ``ptc_id`` related ``Participant`` and its ``UserProject``"""
 

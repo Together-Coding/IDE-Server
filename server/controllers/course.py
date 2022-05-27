@@ -1,6 +1,7 @@
 from server.controllers.base import BaseContoller
 from server.models.course import Course, Participant
 from server.utils.exceptions import AccessCourseFailException
+from server.helpers.cache import course_cache
 
 
 class CourseBaseController(BaseContoller):
@@ -39,15 +40,23 @@ class CourseUserController(CourseBaseController):
 
         self._participant = participant
 
+    @course_cache.memoize(timeout=300)
+    def get_ptc(self, ptc_id: int) -> Participant:
+        return self.db.query(Participant).filter(Participant.id == ptc_id).first()
+
+    @course_cache.memoize(timeout=300)
+    def get_ptc_by_user_id(self, user_id: int) -> Participant:
+        return (
+            self.db.query(Participant)
+            .filter(Participant.course_id == self.course_id)
+            .filter(Participant.user_id == user_id)
+            .first()
+        )
+
     @property
     def my_participant(self) -> Participant:
         if not self._participant:
-            self._participant = (
-                self.db.query(Participant)
-                .filter(Participant.course_id == self.course_id)
-                .filter(Participant.user_id == self.user_id)
-                .first()
-            )
+            self._participant = self.get_ptc_by_user_id(self.user_id)
 
         return self._participant
 

@@ -47,7 +47,10 @@ async def get_feedback_list(sid: str, data: dict = None):
 
     try:
         fb_ctrl = await FeedbackController.from_session(sid, get_db())
-        data = fb_ctrl.get_feedbacks(owner_id, file)
+        if owner_id and file:
+            data = fb_ctrl.get_feedbacks(owner_id, file)
+        else:
+            data = fb_ctrl.get_all_feedbacks()
 
         await sio.emit(WSEvent.FEEDBACK_LIST, data=data, to=sid)
     except BaseException as e:
