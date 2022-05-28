@@ -7,6 +7,7 @@ from typing import Any, Callable
 import redis
 
 from configs import settings
+from server.helpers import sentry
 
 r = redis.StrictRedis.from_url(
     settings.REDIS_URL,
@@ -53,13 +54,16 @@ class Cache:
         def wrapper(f: Callable):
             @functools.wraps(f)
             def decorated(*args, **kwargs):
-                cache_key = f"{key_prefix}.{f.__module__}.{f.__qualname__}"
+                cache_key = f"cache:{key_prefix}:{f.__module__}:{f.__qualname__}"
                 self.log(cache_key)
 
-                _result = r.get(cache_key)
-                if _result is not None:
-                    result = self._loads(_result)
-                    return result
+                try:
+                    _result = r.get(cache_key)
+                    if _result is not None:
+                        result = self._loads(_result)
+                        return result
+                except:
+                    sentry.exc()
 
                 _result = f(*args, **kwargs)
                 result = self._dumps(_result)
@@ -78,8 +82,6 @@ class Cache:
     def _make_param_key(self, f: Callable, ignore_args: list, *args, **kwargs):
         """Make key with parameters"""
 
-        md5 = hashlib.md5()
-
         # Remove args to ignore
         arg_names = self.get_arg_names(f)
         new_args = []
@@ -96,13 +98,14 @@ class Cache:
                 new_args.append(_arg)
 
         # Make key
+        md5 = hashlib.md5()
         md5.update(f"{new_args}{kwargs}{add}".encode())
 
         return md5.hexdigest()
 
     def make_cache_key(self, f: Callable, ignore_args: list, *args, **kwargs):
         param_key = self._make_param_key(f, ignore_args, *args, **kwargs)
-        return f"_:{f.__module__}:{f.__qualname__}:{param_key}"
+        return f"cache:{f.__module__}:{f.__qualname__}:{param_key}"
 
     def memoize(
         self,
@@ -122,11 +125,14 @@ class Cache:
                 cache_key = self.make_cache_key(f, ignore_args, *args, **kwargs)
                 self.log(cache_key)
 
-                _result = r.get(cache_key)
-                if _result is not None:
-                    self.log("# HIT")
-                    result = self._loads(_result)
-                    return result
+                try:
+                    _result = r.get(cache_key)
+                    if _result is not None:
+                        self.log("# HIT")
+                        result = self._loads(_result)
+                        return result
+                except:
+                    sentry.exc()
 
                 # Note: return value ``None`` is not cached.
                 _result = f(*args, **kwargs)
@@ -134,6 +140,8 @@ class Cache:
                 r.set(cache_key, result, timeout)
 
                 return _result
+            
+            decorated.ignore_args = ignore_args
 
             return decorated
 
@@ -143,17 +151,10 @@ class Cache:
         return wrapper
 
     def delete_memoize(self, f: Callable, *args, **kwargs):
-        cache_key = self.make_cache_key(f, [], *args, **kwargs)
+        cache_key = self.make_cache_key(f, f.ignore_args, *args, **kwargs)
         self.log("# DELETE MEMOIZE", cache_key)
 
         r.delete(cache_key)
-
-    def delete_memoize_with_ignore(self, f: Callable, ignore_args: list, *args, **kwargs):
-        cache_key = self.make_cache_key(f, ignore_args, *args, **kwargs)
-        self.log("# DELETE MEMOIZE", cache_key)
-
-        r.delete(cache_key)
-
 
 course_cache = Cache(instance_attr_names=["course_id"])
 lesson_cache = Cache(instance_attr_names=["course_id", "lesson_id"])

@@ -276,9 +276,8 @@ class ProjectController(LessonUserController):
             target_ptc.is_teacher,
         )
 
-        lesson_cache.delete_memoize_with_ignore(
+        lesson_cache.delete_memoize(
             ProjectFileController._check_permission,
-            ["check_perm"],
             self,  # alternative to ProjectFileController object
             PROJ_PERM.ALL,  # ignored
             target_ptc,
