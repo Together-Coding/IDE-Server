@@ -1,11 +1,7 @@
 import importlib
 
-import aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.decorator import cache
 
 from configs import settings
 from server import models, routers, websockets
@@ -40,9 +36,3 @@ for model_mod in models.__all__:
 
 for ws_mod in websockets.__all__:
     ws = importlib.import_module(f".websockets.{ws_mod}", package=__name__)
-
-
-@app.on_event("startup")
-async def startup():
-    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-    FastAPICache.init(RedisBackend(redis), prefix="ide-server")
