@@ -8,6 +8,7 @@ from server.controllers.file import RedisController, S3Controller
 from server.models.course import Lesson, Participant, UserProject
 from server.websockets import session as ws_session
 from server.utils import serializer
+from server.helpers.cache import course_cache, lesson_cache
 
 
 class LessonBaseController(CourseBaseController):
@@ -27,6 +28,10 @@ class LessonBaseController(CourseBaseController):
         self.redis_ctrl = RedisController(self.course_id, self.lesson_id)
         self.s3_ctrl = S3Controller(self.course_id, self.lesson_id, self.redis_ctrl.redis_key)
 
+    @lesson_cache.memoize(timeout=60)
+    def get_lesson(self, lesson_id: int):
+        return self.db.query(Lesson).filter(Lesson.id == lesson_id).first()
+
     @property
     def my_lesson(self) -> Lesson:
         """Return Lesson from self.lesson_id"""
@@ -35,10 +40,11 @@ class LessonBaseController(CourseBaseController):
             return
 
         if not self._lesson:
-            self._lesson = self.db.query(Lesson).filter(Lesson.id == self.lesson_id).first()
+            self._lesson = self.get_lesson(self.lesson_id)
 
         return self._lesson
 
+    @lesson_cache.memoize(timeout=60)
     def get_all_participant(self) -> list[Participant, UserProject]:
         """Return all participants and their projects in the course"""
 
@@ -85,6 +91,15 @@ class LessonUserController(CourseUserController, LessonBaseController):
 
         return cls(user_id=user_id, course_id=course_id, lesson_id=lesson_id, db=db)
 
+    @lesson_cache.memoize(timeout=300)
+    def get_proj_by_ptc_id(self, ptc_id: int) -> UserProject:
+        return (
+            self.db.query(UserProject)
+            .filter(UserProject.lesson_id == self.lesson_id)
+            .filter(UserProject.participant_id == ptc_id)
+            .first()
+        )
+
     @property
     def my_project(self) -> UserProject:
         """Return participant's UserProject"""
@@ -93,12 +108,7 @@ class LessonUserController(CourseUserController, LessonBaseController):
             return
 
         if not self._project:
-            self._project = (
-                self.db.query(UserProject)
-                .filter(UserProject.lesson_id == self.lesson_id)
-                .filter(UserProject.participant_id == self.my_participant.id)
-                .first()
-            )
+            self._project = self.get_proj_by_ptc_id(self.my_participant.id)
 
         return self._project
 
@@ -120,3 +130,17 @@ class LessonUserController(CourseUserController, LessonBaseController):
             room = Room.LESSON.format(course_id=self.course_id, lesson_id=self.lesson_id)
 
             await sio.emit(WSEvent.PARTICIPANT_STATUS, data=data, room=room)
+
+            # Invalidate cache
+            course_cache.delete_memoize(
+                CourseUserController.get_ptc_by_user_id,
+                self,  # alternative to CourseUserController object
+                self.my_participant.user_id,
+            )
+            course_cache.delete_memoize(
+                CourseUserController.get_ptc,
+                self,  # alternative to CourseUserController object
+                self.my_participant.id,
+            )
+
+

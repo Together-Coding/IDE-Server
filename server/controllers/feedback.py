@@ -2,24 +2,28 @@ from collections import defaultdict
 from typing import Any
 
 from sqlalchemy import and_
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import contains_eager, joinedload
+from server.controllers.lesson import LessonBaseController
 
 from server.controllers.project import ProjectController, ProjectFileController
 from server.models.course import PROJ_PERM, Participant, UserProject
 from server.models.feedback import CodeReference, Comment, Feedback, FeedbackViewerMap
-from server.utils.exceptions import FeedbackNotAuthException, FeedbackNotFoundException
 from server.utils import serializer
-from server.utils.serializer import iso8601, participant
-
+from server.utils.exceptions import FeedbackNotAuthException, FeedbackNotFoundException
+from server.helpers.cache import lesson_cache
 
 class FeedbackController(ProjectController):
+    def _invalidate_cache(self, owner_id: int, filename: str):
+        lesson_cache.delete_memoize(FeedbackController.get_all_feedbacks, self)
+        lesson_cache.delete_memoize(FeedbackController.get_feedbacks, self, owner_id, filename)
+
+    @lesson_cache.memoize(300)
     def get_all_feedbacks(self) -> list[dict[str, Any]]:
         """Return all feedback information on a lesson."""
 
         rows: list[UserProject] = (
             self.db.query(UserProject)
-            .filter(UserProject.lesson_id==self.lesson_id)
+            .filter(UserProject.lesson_id == self.lesson_id)
             # CodeReference
             .join(CodeReference, CodeReference.project_id == UserProject.id)
             # Feedback
@@ -46,6 +50,7 @@ class FeedbackController(ProjectController):
 
         return resp
 
+    @lesson_cache.memoize(300)
     def get_feedbacks(self, owner_id: int | None, filename: str | None) -> dict:
         """Return all feedback information on specific file.
 
@@ -215,6 +220,9 @@ class FeedbackController(ProjectController):
 
         self.db.commit()
 
+        # Cache invalidation
+        self._invalidate_cache(owner_id, filename)
+
         return dict(
             feedback=feedback,
             comment=comment,
@@ -292,6 +300,9 @@ class FeedbackController(ProjectController):
 
         self.db.commit()
 
+        # Cache invalidation
+        self._invalidate_cache(owner_id, feedback.code_reference.file)
+
         return {
             "feedback": feedback,
             "acl": result_acl,
@@ -335,6 +346,7 @@ class FeedbackController(ProjectController):
 
         feedback: Feedback = row[0]
         perm: FeedbackViewerMap = row[1]
+        code_ref = feedback.code_reference
 
         if not feedback:
             raise FeedbackNotFoundException("존재하지 않는 피드백입니다.")
@@ -346,6 +358,9 @@ class FeedbackController(ProjectController):
         self.db.commit()
 
         acl = [perm.participant_id for perm in feedback.viewer_map]
+
+        # Cache invalidation
+        self._invalidate_cache(code_ref.project.participant_id, code_ref.file)
 
         return dict(
             feedback=feedback,
@@ -372,7 +387,7 @@ class FeedbackController(ProjectController):
 
         if cmt.participant_id != self.my_participant.id:
             raise FeedbackNotAuthException("해당 댓글에 대한 수정 권한이 없습니다.")
-
+        
         dirty = False
         if new_content:
             cmt.content = new_content
@@ -387,6 +402,10 @@ class FeedbackController(ProjectController):
             self.db.commit()
 
         acl = [perm.participant_id for perm in cmt.feedback.viewer_map]
+
+        # Cache invalidation
+        code_ref = cmt.feedback.code_reference
+        self._invalidate_cache(code_ref.project.participant_id, code_ref.file)
 
         return dict(
             feedback=cmt.feedback,
