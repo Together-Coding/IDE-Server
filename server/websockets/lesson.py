@@ -80,12 +80,16 @@ async def init_lesson(sid: str, data: dict):
             "is_teacher": ptc.is_teacher,
         },
         to=sid,
+        uuid=data.get("uuid"),
     )
 
 
 @sio.on(WSEvent.ALL_PARTICIPANT)
 @in_lesson
-async def get_all_participant(sid: str, data: None = None):
+async def get_all_participant(sid: str, data: dict | None = None):
+    if not data:
+        data = {}
+        
     lesson_ctrl = LessonBaseController(
         course_id=await ws_session.get(sid, "course_id"),
         lesson_id=await ws_session.get(sid, "lesson_id"),
@@ -93,5 +97,5 @@ async def get_all_participant(sid: str, data: None = None):
     )
 
     ptc_data = lesson_ctrl.get_all_participant()
-    data = [serializer.participant(ptc, proj) for ptc, proj in ptc_data]
-    await sio.emit(WSEvent.ALL_PARTICIPANT, data=data, to=sid)
+    resp = [serializer.participant(ptc, proj) for ptc, proj in ptc_data]
+    await sio.emit(WSEvent.ALL_PARTICIPANT, data=resp, to=sid, uuid=data.get("uuid"))

@@ -129,7 +129,12 @@ class LessonUserController(CourseUserController, LessonBaseController):
             data = serializer.participant(self.my_participant, self.my_project)
             room = Room.LESSON.format(course_id=self.course_id, lesson_id=self.lesson_id)
 
-            await sio.emit(WSEvent.PARTICIPANT_STATUS, data=data, room=room)
+            await sio.emit(
+                WSEvent.PARTICIPANT_STATUS,
+                data=data,
+                room=room,
+                uuid=f"ptc-{self.my_participant.id}",
+            )
 
             # Invalidate cache
             course_cache.delete_memoize(
@@ -142,5 +147,3 @@ class LessonUserController(CourseUserController, LessonBaseController):
                 self,  # alternative to CourseUserController object
                 self.my_participant.id,
             )
-
-

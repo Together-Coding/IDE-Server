@@ -45,6 +45,7 @@ async def get_last_cursor(sid: str, data: dict):
                 "cursor": cursor,
             },
             to=sid,
+            uuid=data.get("uuid")
         )
     except BaseException as e:
         await sio.emit(WSEvent.CURSOR_LAST, ws_error_response(e.error), to=sid)
@@ -101,6 +102,7 @@ async def update_last_cursor(sid: str, data: dict):
                 "timestamp": timestamp,
             },
             room=target_room,
+            uuid=data.get("uuid"),
         )
         
         # If the event is 'open', do not need to update it, but need to broadcast the cursor.
