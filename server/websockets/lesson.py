@@ -89,7 +89,7 @@ async def init_lesson(sid: str, data: dict):
 async def get_all_participant(sid: str, data: dict | None = None):
     if not data:
         data = {}
-        
+
     lesson_ctrl = LessonBaseController(
         course_id=await ws_session.get(sid, "course_id"),
         lesson_id=await ws_session.get(sid, "lesson_id"),

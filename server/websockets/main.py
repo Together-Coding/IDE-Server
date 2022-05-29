@@ -24,6 +24,10 @@ async def connect(sid: str, environ: dict, auth: dict[str, Any]):
             if idx != -1:
                 token = v[idx + len("bearer") :].strip()
             break
+        elif k.lower() == "x-api-key":
+            if v == settings.WS_MONITOR_KEY:
+                # Bypass authorization and set connected
+                return await ws_session.update(sid, {"admin": True})
 
     if not token:
         raise ConnectionRefusedError("Authorization token is required.")

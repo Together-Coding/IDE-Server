@@ -2,6 +2,8 @@ import importlib
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from configs import settings
 from server import models, routers, websockets
@@ -15,15 +17,18 @@ else:
 
 
 app = FastAPI()
-init_sentry(app)
 sio, sio_app = create_websocket(app, cors_allow_origins)
+
+init_sentry(app)
+app.mount("/static", StaticFiles(directory="server/static"), name='static')
+templates = Jinja2Templates(directory="server/templates")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Authorization"],
+    allow_headers=["Authorization", "X-API-KEY"],
 )
 
 for router_mod in routers.__all__:

@@ -1,0 +1,42 @@
+body {
+    background-color: #efefef;
+}
+
+.header-breadcrumb {
+    padding: 10px;
+}
+
+.content-wrapper {
+    padding: 20px;
+}
+
+
+/* Course */
+.course-name {
+    font-weight: 500;
+}
+
+.course-desc {
+    color: #727272;
+    font-size: 0.9rem;
+}
+
+/* Lesson */
+.lesson-name {}
+
+.lesson-desc {
+    color: #727272;
+    font-size: 0.9rem;
+}
+
+.lesson-selector .accordion {
+    margin: 10px;
+}
+
+.lesson-selector .accordion .content {
+    margin-left: 14px;
+}
+
+.lesson-active {
+    color: #4183c4 !important;
+}
