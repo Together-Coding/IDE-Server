@@ -1,0 +1,41 @@
+{% extends "test/base.html" %}
+
+{% block breadcrumb %}
+<a class="active section" href="{{ url_for('index') }}">Home</a>
+{% endblock %}
+
+{% block content %}
+
+<h3 class="ui header">
+    <div class="content"><i class="tags icon"></i>강의 목록</div>
+</h2>
+
+<div class="lesson-selector">
+    {% for course in courses %}
+    <div class="ui accordion">
+        <div class="title {% if loop.index == 1 %}active{% endif %}">
+            <p class="course-name"><i class="dropdown icon"></i>{{ course.name }} <span class="course-desc">- {{ course.description }}</span></p>
+        </div>
+        <div class="content {% if loop.index == 1 %}active{% endif %}">
+            <div class="transition visible" style="display: block !important;">
+                <div class="ui relaxed divided list">
+                    {% for lesson in course.lessons %}
+                    <div class="item">
+                        <div class="content">
+                            <a href="{{ url_for('control_panel') }}?course_id={{course.id}}&lesson_id={{lesson.id}}"
+                                style="display:block;">
+                                <span class="{% if lesson.active %}lesson-active{% endif %} header lesson-name">
+                                    {{ lesson.name }}
+                                </span>
+                                <span class="lesson-desc">{{ lesson.description }}</span>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
