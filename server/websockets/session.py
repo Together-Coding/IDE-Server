@@ -8,6 +8,10 @@ def is_connected(sid: str, namespaces: str | None = None):
     return sio.manager.is_connected(sid, namespaces)
 
 
+async def is_admin(sid: str):
+    return await get(sid, "admin") is True
+
+
 async def get(sid: str, key: str, namespaces: str | None = None) -> Any:
     s = await sio.get_session(sid, namespaces)
     return s.get(key)
@@ -60,7 +64,7 @@ def get_ptc_sid(course_id: int, lesson_id: int, ptc_id: int) -> str | None:
 
     room_name = Room.PERSONAL_PTC.format(course_id=course_id, lesson_id=lesson_id, ptc_id=ptc_id)
 
-    _rooms: dict = sio.manager.rooms['/']  # Default namespace is '/'
+    _rooms: dict = sio.manager.rooms["/"]  # Default namespace is '/'
     sids = _rooms.get(room_name, {})
 
     return list(sids.keys())[0] if sids else None

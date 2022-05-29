@@ -27,6 +27,7 @@ async def get_ptc_subs_list(sid: str, data: None = None):
         WSEvent.SUBS_PARTICIPANT_LIST,
         {"participant_id": sorted(subs_ptc_ids)},
         to=sid,
+        uuid=data.get("uuid"),
     )
 
 
@@ -74,6 +75,7 @@ async def subscribe_participant(sid: str, data: dict):
             "fail_reason": fail_reason,
         },
         to=sid,
+        uuid=data.get("uuid"),
     )
 
 
@@ -106,7 +108,7 @@ async def unsubscribe_participant(sid: str, data: dict):
         except:
             sentry.exc()
 
-    await sio.emit(WSEvent.UNSUBS_PARTICIPANT, {"success": True}, to=sid)
+    await sio.emit(WSEvent.UNSUBS_PARTICIPANT, {"success": True}, to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
@@ -114,10 +116,13 @@ async def unsubscribe_participant(sid: str, data: dict):
 async def ping(sid: str, data=None):
     """Listen ping to update UserProject.recent_activity_at"""
 
+    if not data:
+        data = {}
+
     ctrl = await PingController.from_session(sid, get_db())
     await ctrl.update_recent_activity()
 
-    await sio.emit(WSEvent.ACTIVITY_PING, "pong", to=sid)
+    await sio.emit(WSEvent.ACTIVITY_PING, "pong", to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.PROJECT_ACCESSIBLE)
@@ -128,6 +133,9 @@ async def project_accessible(sid: str, data=None):
     2. 나의 프로젝트에 접근 가능한 유저
     이들과 관련된 데이터를 반환한다.
     """
+
+    if not data:
+        data = {}
 
     proj_ctrl = await ProjectController.from_session(sid, get_db())
     to_users = proj_ctrl.accessible_to()
@@ -141,7 +149,7 @@ async def project_accessible(sid: str, data=None):
             serializer.accessible_user(part, proj, perm, PROJ_PERM.READ) for part, proj, perm in from_users
         ],
     }
-    await sio.emit(WSEvent.PROJECT_ACCESSIBLE, resp, to=sid)
+    await sio.emit(WSEvent.PROJECT_ACCESSIBLE, resp, to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.PROJECT_PERM)
@@ -154,6 +162,9 @@ async def modify_project_permission(sid: str, data=None):
         permission: (int) new RWX permission
     }
     """
+
+    if not data:
+        data = {}
 
     proj_ctrl = await ProjectController.from_session(sid, get_db())
     if type(data) != list:
@@ -191,9 +202,9 @@ async def modify_project_permission(sid: str, data=None):
             lesson_id=proj_ctrl.lesson_id,
             ptc_id=noti["userId"],
         )
-        await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room)
+        await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room, uuid=data.get("uuid"))
 
-    await sio.emit(WSEvent.PROJECT_PERM, {"message": "Permission changed."}, to=sid)
+    await sio.emit(WSEvent.PROJECT_PERM, {"message": "Permission changed."}, to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.DIR_INFO)
@@ -212,7 +223,7 @@ async def get_dir_info(sid: str, data: dict | None = None):
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         files = proj_file_ctrl.get_dir_info(target_id)
 
-        await sio.emit(WSEvent.DIR_INFO, {"file": files}, to=sid)
+        await sio.emit(WSEvent.DIR_INFO, {"file": files}, to=sid, uuid=data.get("uuid"))
     except BaseException as e:
         return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)
     except Exception as e:
@@ -237,7 +248,12 @@ async def file_read(sid: str, data: dict):
     try:
         proj_file_ctrl = await ProjectFileController.from_session(sid=sid, db=get_db())
         content = proj_file_ctrl.get_file_content(owner_id, file)
-        await sio.emit(WSEvent.FILE_READ, {"ownerId": owner_id, "file": file, "content": content}, to=sid)
+        await sio.emit(
+            WSEvent.FILE_READ,
+            {"ownerId": owner_id, "file": file, "content": content},
+            to=sid,
+            uuid=data.get("uuid"),
+        )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_READ, ws_error_response(e.error), to=sid)
 
@@ -269,7 +285,12 @@ async def file_create(sid: str, data: dict):
             lesson_id=proj_file_ctrl.lesson_id,
             ptc_id=owner_id,
         )
-        await sio.emit(WSEvent.FILE_CREATE, {"type": type_, "name": name}, room=target_room)
+        await sio.emit(
+            WSEvent.FILE_CREATE,
+            {"type": type_, "name": name},
+            room=target_room,
+            uuid=data.get("uuid"),
+        )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid)
 
@@ -312,6 +333,7 @@ async def file_update(sid: str, data: dict):
                 "rename": rename,
             },
             room=target_room,
+            uuid=data.get("uuid"),
         )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid)
@@ -352,6 +374,7 @@ async def file_delete(sid: str, data: dict):
                 "name": name,
             },
             room=target_room,
+            uuid=data.get("uuid"),
         )
     except BaseException as e:
         return await sio.emit(WSEvent.FILE_DELETE, ws_error_response(e.error), to=sid)

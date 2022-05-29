@@ -1,4 +1,11 @@
 class WSEvent:
+    # Admin and Monitoring
+    WS_MONITOR = "WS_MONITOR"
+    WS_MONITOR_EVENT = "WS_MONITOR_EVENT"  # Monitored event (message)
+    TIMESTAMP_ACK = "TIMESTAMP_ACK"
+    TIME_SYNC = "TIME_SYNC"
+    TIME_SYNC_ACK = "TIME_SYNC_ACK"
+
     # Common
     ERROR = "ERROR"
 
@@ -42,10 +49,20 @@ class WSEvent:
     FEEDBACK_COMMENT_MOD = "FEEDBACK_COMMENT_MOD"
 
 
+WS_MONITOR_EVENTS = [
+    WSEvent.WS_MONITOR,
+    WSEvent.WS_MONITOR_EVENT,
+    WSEvent.TIMESTAMP_ACK,
+    # WSEvent.TIME_SYNC,
+    # WSEvent.TIME_SYNC_ACK,
+]
+
 ROOM_TYPE = "room-{type}"  # session key to store room names to remember what rooms the user enterred.
 
 
 class Room:
+    WS_MONITOR = "admin:monitor"
+
     PERSONAL_PTC = "{course_id}:{lesson_id}:{ptc_id}:self"  # Used to retrieve session id from participant id
     SUBS_PTC = "{course_id}:{lesson_id}:{ptc_id}"  # Used to subscribe specific participant
     LESSON = "{course_id}:{lesson_id}"

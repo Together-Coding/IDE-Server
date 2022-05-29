@@ -5,6 +5,7 @@ from constants.ws import WSEvent
 from server import sio
 from server.utils.response import ws_error_response
 from server.websockets import session as ws_session
+from configs import settings
 
 
 def requires(event: str, names: list):
@@ -42,6 +43,21 @@ def in_lesson(f: Awaitable):
         if not course_id or not lesson_id:
             msg = "수업에 접속한 상태가 아닙니다. `INIT_LESSON` 이벤트를 전송해주세요."
             return await sio.emit(WSEvent.ERROR, ws_error_response(msg), to=sid)
+
+        return await f(sid, *args, **kwargs)
+
+    return decorated
+
+
+def admin_only(f: Awaitable):
+    """
+    Allow connection only for admin users
+    """
+
+    async def decorated(sid: str, *args, **kwargs):
+        is_admin = await ws_session.is_admin(sid)
+        if not is_admin:
+            return await sio.emit("message", "Admin only", to=sid)
 
         return await f(sid, *args, **kwargs)
 

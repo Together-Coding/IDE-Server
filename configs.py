@@ -4,6 +4,9 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     DEBUG: bool = False
     WS_DEBUG: bool = False  # Debug websocket
+    WS_MONITOR: bool = False
+    WS_MONITOR_KEY: str = ""
+
     SENTRY_DSN: str = ""
 
     SQLALCHEMY_DATABASE_URL: str = ""

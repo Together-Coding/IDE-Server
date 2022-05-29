@@ -48,11 +48,11 @@ async def get_feedback_list(sid: str, data: dict = None):
     try:
         fb_ctrl = await FeedbackController.from_session(sid, get_db())
         if owner_id and file:
-            data = fb_ctrl.get_feedbacks(owner_id, file)
+            resp = fb_ctrl.get_feedbacks(owner_id, file)
         else:
-            data = fb_ctrl.get_all_feedbacks()
+            resp = fb_ctrl.get_all_feedbacks()
 
-        await sio.emit(WSEvent.FEEDBACK_LIST, data=data, to=sid)
+        await sio.emit(WSEvent.FEEDBACK_LIST, data=resp, to=sid, uuid=data.get("uuid"))
     except BaseException as e:
         await sio.emit(WSEvent.FEEDBACK_LIST, data=ws_error_response(e.error), to=sid)
     except:
@@ -99,7 +99,7 @@ async def add_feedback(sid: str, data: dict):
         comment: Comment = result["comment"]
         acl: list[int] = result["acl"]
 
-        data = {
+        resp = {
             "ref": serializer.code_ref_from_feedback(feedback),
             "feedback": serializer.feedback(feedback, fb_ctrl.my_participant, acl),
             "comment": serializer.comment(comment),
@@ -109,7 +109,12 @@ async def add_feedback(sid: str, data: dict):
         for ptc_id in acl:
             target_sid = ws_session.get_ptc_sid(fb_ctrl.course_id, fb_ctrl.lesson_id, ptc_id)
             if target_sid:
-                await sio.emit(WSEvent.FEEDBACK_ADD, data=data, to=target_sid)
+                await sio.emit(
+                    WSEvent.FEEDBACK_ADD,
+                    data=resp,
+                    to=target_sid,
+                    uuid=data.get("uuid"),
+                )
 
     except BaseException as e:
         await sio.emit(WSEvent.FEEDBACK_ADD, data=ws_error_response(e.error), to=sid)
@@ -144,7 +149,7 @@ async def modify_feedback(sid: str, data: dict):
         feedback: Feedback = result["feedback"]
         result_acl: list[int] = result["acl"]
 
-        data = {
+        resp = {
             "ref": serializer.code_ref_from_feedback(feedback),
             "feedback": serializer.feedback(feedback, fb_ctrl.my_participant, result_acl),
         }
@@ -153,7 +158,12 @@ async def modify_feedback(sid: str, data: dict):
         for ptc_id in result_acl:
             target_sid = ws_session.get_ptc_sid(fb_ctrl.course_id, fb_ctrl.lesson_id, ptc_id)
             if target_sid:
-                await sio.emit(WSEvent.FEEDBACK_MOD, data=data, to=target_sid)
+                await sio.emit(
+                    WSEvent.FEEDBACK_MOD,
+                    data=resp,
+                    to=target_sid,
+                    uuid=data.get("uuid"),
+                )
 
     except BaseException as e:
         await sio.emit(WSEvent.FEEDBACK_MOD, data=ws_error_response(e.error), to=sid)
@@ -176,7 +186,7 @@ async def create_comment(sid: str, data: dict):
         comment: Comment = result["comment"]
         acl: list[int] = result["acl"]
 
-        data = {
+        resp = {
             "ref": serializer.code_ref_from_feedback(feedback),
             "feedback": serializer.feedback(feedback, feedback.participant, acl),
             "comment": serializer.comment(comment, fb_ctrl.my_participant),
@@ -186,7 +196,12 @@ async def create_comment(sid: str, data: dict):
         for ptc_id in acl:
             target_sid = ws_session.get_ptc_sid(fb_ctrl.course_id, fb_ctrl.lesson_id, ptc_id)
             if target_sid:
-                await sio.emit(WSEvent.FEEDBACK_COMMENT, data=data, to=target_sid)
+                await sio.emit(
+                    WSEvent.FEEDBACK_COMMENT,
+                    data=resp,
+                    to=target_sid,
+                    uuid=data.get("uuid"),
+                )
     except BaseException as e:
         await sio.emit(WSEvent.FEEDBACK_COMMENT, data=ws_error_response(e.error), to=sid)
     except:
@@ -211,7 +226,7 @@ async def modify_comment(sid: str, data: dict):
         comment: Comment = result["comment"]
         acl: list[int] = result["acl"]
 
-        data = {
+        resp = {
             "ref": serializer.code_ref_from_feedback(feedback),
             "feedback": serializer.feedback(feedback, feedback.participant, acl),
             "comment": serializer.comment(comment, fb_ctrl.my_participant),
@@ -221,7 +236,12 @@ async def modify_comment(sid: str, data: dict):
         for ptc_id in acl:
             target_sid = ws_session.get_ptc_sid(fb_ctrl.course_id, fb_ctrl.lesson_id, ptc_id)
             if target_sid:
-                await sio.emit(WSEvent.FEEDBACK_COMMENT_MOD, data=data, to=target_sid)
+                await sio.emit(
+                    WSEvent.FEEDBACK_COMMENT_MOD,
+                    data=resp,
+                    to=target_sid,
+                    uuid=data.get("uuid"),
+                )
     except BaseException as e:
         await sio.emit(WSEvent.FEEDBACK_COMMENT_MOD, data=ws_error_response(e.error), to=sid)
     except:
