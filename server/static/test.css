@@ -40,3 +40,39 @@ body {
 .lesson-active {
     color: #4183c4 !important;
 }
+
+/* Control panel */
+.control-item-container {
+    margin: 10px 0;
+}
+.control-item {
+    display: inline-block;
+    margin: 2px 4px;
+}
+
+.control-item:not(:first-child):before {
+    content: "| ";
+    margin: 0 4px;
+}
+
+.control-item input {
+    vertical-align: middle;
+}
+
+.control-item > * {
+    margin-right: 6px;
+}
+
+/* Chart */
+.chart-wrapper {
+    position: relative;
+}
+
+.flyingMsg {
+    position: absolute;
+    padding: 2px 8px;
+
+    border-radius: 6px;
+    font-size: 10px;
+    text-align: center;
+}

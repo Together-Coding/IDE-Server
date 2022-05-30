@@ -59,7 +59,56 @@ async def disconnect(sid: str):
     except:
         pass
 
+    if settings.WS_MONITOR:
+        eid = sio.manager.eio_sid_from_sid(sid, namespace="/")
+        if eid:
+            await sio.emit(
+                WSEvent.WS_MONITOR_EVENT,
+                data={"monitor_event": "disconnect", "eid": eid},
+                to=Room.WS_MONITOR,
+            )
+
 
 @sio.on("echo")
 async def ws_echo(sid: str, data: Any = None):
-    await sio.emit("message", f"{data}", to=sid)
+    if type(data) != dict:
+        data = {"echo": data}
+
+    await sio.emit(
+        "echo",
+        data=data,
+        to=sid,
+        uuid=data.get("uuid"),
+    )
+
+
+@sio.on(WSEvent.TIME_SYNC)
+async def time_sync(sid: str, data: dict):
+    """
+    data: {
+        ts (int): Timestamp in milliseconds
+    }
+    """
+
+    data["server_ts"] = int(time.time() * 1000)
+    await sio.emit(WSEvent.TIME_SYNC_ACK, data=data, to=sid)
+
+
+@sio.on(WSEvent.TIME_SYNC_ACK)
+async def time_sync_ack(sid: str, data: dict):
+    """
+    data: {
+        diff (float): server_ts - (client's send ts + client's recv ts) / 2 meaning, how much milliseconds this server is ahead.
+    }
+    """
+    ts1 = data.get("ts1")
+    ts2 = data.get("ts2")
+    server_ts = data.get("server_ts")
+
+    if not all([ts1, ts2, server_ts]):
+        return
+
+    now = int(time.time() * 1000)
+    diff = ((server_ts - (ts1 + ts2) / 2) + ((server_ts + now) / 2 - ts2)) / 2
+
+    await ws_session.update(sid, {"time_diff": diff})

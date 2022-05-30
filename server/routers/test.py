@@ -8,6 +8,7 @@ from server import templates
 from server.helpers.db import get_db, get_db_dep
 from server.models.course import Course, Lesson
 from server.models.test import TestConfig, TestContainer
+from server.utils.etc import get_hostname
 
 
 def auth_required(api_key: str = Header(default="", alias="X-API-KEY")):
@@ -57,6 +58,7 @@ async def control_panel(
         "test/control_panel.html",
         {
             "request": request,
+            "hostname": "Server-" + get_hostname(),
             "x_api_key": settings.WS_MONITOR_KEY,
             "lesson": lesson,
         },
