@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from configs import settings
 from constants.ws import WS_MONITOR_EVENTS, Room, WSEvent
 from server.helpers.redis_ import r
+from server.utils.etc import get_hostname
 
 __all__ = [
     "main",

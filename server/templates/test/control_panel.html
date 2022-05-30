@@ -1,0 +1,248 @@
+{% extends "test/base.html" %}
+
+{% block breadcrumb %}
+<a class="section" href="{{ url_for('index') }}">Home</a>
+<div class="divider"> / </div>
+<a class="active section">Control Panel</a>
+{% endblock %}
+
+{% block content %}
+
+{{ lesson.id }} {{ lesson.name }}
+<hr>
+<div class="control-item-container">
+    <div>
+        <div class="control-item">
+            <span>Avg time diff: </span>
+            <span><strong id="avg-time-diff">0</strong> ms</span>
+        </div>
+        <div class="control-item">
+            <label for="adjust-time-diff">Adjust</label>
+            <input type="checkbox" value="" id="adjust-time-diff">
+        </div>
+    </div>
+    <div>
+        <div class="control-item">
+            <label for="min-duration">Adjust duration</label>
+            <input type="number" id="min-duration" step="10" placeholder="duration" value="300">
+        </div>
+    </div>
+</div>
+<div id="chart-wrapper">
+    <div id="container"></div>
+    <div class="flyingMsg">😋</div>
+</div>
+
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"
+    integrity="sha512-9mpsATI0KClwt+xVZfbcf2lJ8IFBAwsubJ6mI3rtULwyM3fBmQFzj0It4tGqxLOGQwGfJdk/G+fANnxfq9/cew=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.1.0/highcharts.js"
+    integrity="sha512-8mNMOCKB2dbqlbvEAC4C4aMIioDavSLzEHF4P/A+V8ODWoaRnBz4zar7CGM8o1teyAV1sI7n6NhMLfgNZThWIA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.1.0/modules/networkgraph.min.js"
+    integrity="sha512-6ODfrEE25LDpXQp3qGrCWRyroRiMPNCBCGE17THBylrP5k6QyQv5UpkYDYLX8o9XP7b+DpTfJTxv17461iHVHA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script src="{{ url_for('static', path='/utils.js') }}"></script>
+<script src="{{ url_for('static', path='/ws_monitor_chart.js') }}"></script>
+
+<script>
+    // Control
+    const avgTimeDiff = document.getElementById('avg-time-diff');
+    let timeDiffCnt = 0;
+    let avgTimeDiffValue = 0;
+
+    const adjustTimeDiffCheckbox = document.getElementById("adjust-time-diff");
+    let adjustTimeDiff = false;
+
+    const adjustDurationInput = document.getElementById('min-duration');
+    let adjustDurationValue = adjustDurationInput.value;
+
+    // Chart and animation
+    const chartWrapper = document.getElementById('chart-wrapper');
+    const container = document.getElementById('container');
+    const pointer = document.getElementsByClassName('flyingMsg')[0];
+    const flyResolution = 20;  // milliseconds
+
+    // size of message element
+    const msgElWidth = 60;
+    const msgElHeight = 10;
+
+    adjustTimeDiffCheckbox.addEventListener('change', (e) => {
+        adjustTimeDiff = e.currentTarget.checked;
+    });
+
+    adjustDurationInput.addEventListener('input', (e) => {
+        adjustDurationValue = e.currentTarget.value;
+    })
+
+    const createMessage = (from, to, event, size, uuid, duration, isClientEmit) => {
+        if (!nodeTable.hasOwnProperty(from) || !nodeTable.hasOwnProperty(to)) return;
+
+        let shortEventName = event.length > 10 ? event.toUpperCase().slice(0, 10) + "..." : event.toUpperCase();
+        let bgColor = stringToColor(event + (isClientEmit ? 'c' : 's'));
+        let _size = parseInt(Math.log2(size ** 2 + size))
+        console.log(event, size, _size)
+
+        // Create element
+        let d = document.createElement('div');
+        d.classList.add('flyingMsg');
+        d.innerText = "😋" + shortEventName
+        d.id = uuid;
+
+        // Set initial position and style
+        let _msgElWidth = msgElWidth + shortEventName.length * 2 + _size
+        let _msgElHeight = msgElHeight + _size
+
+        if (_size > 14) {
+            _msgElWidth += parseInt(shortEventName.length / 4)
+            d.style.fontSize = "12px"
+            d.style.fontWeight = "500"
+            d.style.zIndex = _size
+        } else if (_size > 20) {
+            _msgElWidth += parseInt(shortEventName.length / 2)
+            d.style.fontSize = "14px"
+            d.style.fontWeight = "700"
+            d.style.zIndex = _size
+        }
+
+        let fromNodeRect = nodeTable[from].graphic.element.getBoundingClientRect();
+        let [fromCenterX, fromCenterY] = [
+            fromNodeRect.left + (fromNodeRect.width - _msgElWidth) / 2,
+            fromNodeRect.top + (fromNodeRect.height - _msgElHeight) / 2
+        ];
+
+        // Set style
+        d.style.width = _msgElWidth + 'px';
+        d.style.height = _msgElHeight + 'px';
+        d.style.lineHeight = (_msgElHeight - 3) + 'px';
+        d.style.left = fromCenterX + 'px';
+        d.style.top = fromCenterY + 'px';
+        d.style.backgroundColor = bgColor;
+        d.style.color = invertColor(bgColor);
+
+        // Show
+        chartWrapper.appendChild(d)
+
+        // Show animation
+        duration = Math.max(adjustDurationValue, duration);
+        let iter = parseInt(duration / flyResolution) - 1
+        let interval = setInterval((_el, _duration, event) => {
+            let toNodeRect = nodeTable[to].graphic.element.getBoundingClientRect();
+            let [toCenterX, toCenterY, _centerX, _centerY] = [
+                toNodeRect.left + (toNodeRect.width - _msgElWidth) / 2,
+                toNodeRect.top + (toNodeRect.height - _msgElHeight) / 2,
+                _el.style.left + _msgElWidth / 2,
+                _el.style.top + _msgElHeight / 2,
+            ];
+
+            // let _unit = Math.min(flyResolution, _duration)
+            // let stepX = Math.round((toCenterX - parseFloat(_centerX)) / _duration * _unit * 1e4) / 1e4;
+            // let stepY = Math.round((toCenterY - parseFloat(_centerY)) / _duration * _unit * 1e4) / 1e4;
+            let stepX = Math.round((toCenterX - parseFloat(_centerX)) / iter * 1e4) / 1e4;
+            let stepY = Math.round((toCenterY - parseFloat(_centerY)) / iter * 1e4) / 1e4;
+
+            _el.style.left = parseFloat(_el.style.left.slice(0, -2)) + stepX + 'px';
+            _el.style.top = parseFloat(_el.style.top.slice(0, -2)) + stepY + 'px';
+
+            iter = iter > 0 ? iter - 1 : 1;
+        }, flyResolution, d, duration, event)
+
+        // Clear interval and remove the flying message
+        setTimeout((_el) => {
+            clearInterval(interval);
+            interval = null;
+            chartWrapper.removeChild(_el);
+        }, duration, d)
+    }
+
+    const updateAvgTimeDiff = (newTimeDiff) => {
+        if (newTimeDiff) {
+            timeDiffCnt += 1;
+            avgTimeDiffValue = avgTimeDiffValue + (newTimeDiff - avgTimeDiffValue) / timeDiffCnt;
+            avgTimeDiff.innerText = avgTimeDiffValue.toPrecision(6);
+        }
+    }
+
+    const calcMessageSize = (payload) => {
+        return JSON.stringify(payload).length;
+    }
+
+    const processMessage = (data) => {
+        let { _ts_1, _ts_2, _ts_3, _ts_4,
+            _ts_1_eid, _ts_3_eid, _c_emit, _s_emit,
+            server, uuid, time_diff, ...payload } = { ...data }
+
+        let timeToServer = null;
+        let timeToClient = null;
+        let timeToProc = null;
+
+        updateAvgTimeDiff(time_diff)
+        totalSize = calcMessageSize(data)
+        size = calcMessageSize(payload)
+
+        // How much milliseconds this server is ahead?
+        // Add timeDiff to timestamp of a client. Then, time difference is somewhat adjusted and time is synchronized.
+        const timeDiff = adjustTimeDiff ? time_diff || 0 : 0;
+
+        if (data.hasOwnProperty('_ts_1') && data.hasOwnProperty('_ts_2')) {
+            timeToServer = data._ts_2 - (data._ts_1 + timeDiff);
+        }
+        if (data.hasOwnProperty('_ts_3') && data.hasOwnProperty('_ts_4')) {
+            timeToClient = (data._ts_4 + timeDiff) - data._ts_3;
+        }
+        if (timeToServer != null && timeToClient != null) {
+            timeToProc = data._ts_3 - data._ts_2;
+        }
+
+
+        // Add edges and nodes of graph if necessary.
+        if (_ts_1_eid) addEdge(_ts_1_eid, server)
+        addEdge(server, _ts_3_eid)
+
+        // Show flying message
+        if (_ts_3 && _ts_4 && _ts_3_eid) {
+            // Server's emit
+            createMessage(server, _ts_3_eid, _s_emit, size, uuid, timeToClient, false);
+        } else if (_ts_1 && _ts_2 && _ts_1_eid) {
+            // Client's emit
+            createMessage(_ts_1_eid, server, _c_emit, size, uuid, timeToServer, true);
+        }
+    }
+
+    (function () {
+        createGraph("{{ hostname }}")
+
+        let sio = io("/", {
+            auth: { 'X-API-KEY': "{{ x_api_key }}" },
+        });
+
+        sio.on('connect', () => {
+            // Authorize as an admin and enter monitoring room
+            sio.emit("WS_MONITOR", {});
+        })
+
+        sio.on('echo', data => {
+        })
+
+        sio.on('WS_MONITOR', data => {
+            console.log(data)
+        })
+
+        const disconnectHandler = (data) => {
+            dropNode(data.eid);
+        }
+
+        sio.on('WS_MONITOR_EVENT', data => {
+            if (data.monitor_event == 'disconnect') return disconnectHandler(data);
+
+            processMessage(data)
+        })
+    }())
+</script>
+{% endblock %}
