@@ -168,7 +168,9 @@ async def modify_project_permission(sid: str, data=None):
 
     proj_ctrl = await ProjectController.from_session(sid, get_db())
     if type(data) != list:
-        return await sio.emit(WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid)
+        return await sio.emit(
+            WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid, uuid=data.get("uuid")
+        )
 
     my_room_name = Room.SUBS_PTC.format(
         course_id=proj_ctrl.course_id,
@@ -225,10 +227,12 @@ async def get_dir_info(sid: str, data: dict | None = None):
 
         await sio.emit(WSEvent.DIR_INFO, {"file": files}, to=sid, uuid=data.get("uuid"))
     except BaseException as e:
-        return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.DIR_INFO, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except Exception as e:
         sentry.exc()
-        return await sio.emit(WSEvent.DIR_INFO, ws_error_response("Unknown error occurred."), to=sid)
+        return await sio.emit(
+            WSEvent.DIR_INFO, ws_error_response("Unknown error occurred."), to=sid, uuid=data.get("uuid")
+        )
 
 
 @sio.on(WSEvent.FILE_READ)
@@ -255,7 +259,7 @@ async def file_read(sid: str, data: dict):
             uuid=data.get("uuid"),
         )
     except BaseException as e:
-        return await sio.emit(WSEvent.FILE_READ, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.FILE_READ, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.FILE_CREATE)
@@ -292,7 +296,7 @@ async def file_create(sid: str, data: dict):
             uuid=data.get("uuid"),
         )
     except BaseException as e:
-        return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.FILE_CREATE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.FILE_UPDATE)
@@ -336,7 +340,7 @@ async def file_update(sid: str, data: dict):
             uuid=data.get("uuid"),
         )
     except BaseException as e:
-        return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.FILE_UPDATE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.FILE_DELETE)
@@ -377,4 +381,4 @@ async def file_delete(sid: str, data: dict):
             uuid=data.get("uuid"),
         )
     except BaseException as e:
-        return await sio.emit(WSEvent.FILE_DELETE, ws_error_response(e.error), to=sid)
+        return await sio.emit(WSEvent.FILE_DELETE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))

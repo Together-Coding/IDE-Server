@@ -45,10 +45,10 @@ async def get_last_cursor(sid: str, data: dict):
                 "cursor": cursor,
             },
             to=sid,
-            uuid=data.get("uuid")
+            uuid=data.get("uuid"),
         )
     except BaseException as e:
-        await sio.emit(WSEvent.CURSOR_LAST, ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.CURSOR_LAST, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.CURSOR_MOVE)
@@ -84,14 +84,14 @@ async def update_last_cursor(sid: str, data: dict):
 
         # 해당 프로젝트 room 으로 전송
         target_room = Room.SUBS_PTC.format(
-            course_id=await ws_session.get(sid, 'course_id'),
-            lesson_id=await ws_session.get(sid, 'lesson_id'),
+            course_id=await ws_session.get(sid, "course_id"),
+            lesson_id=await ws_session.get(sid, "lesson_id"),
             ptc_id=owner_id,
         )
         await sio.emit(
             WSEvent.CURSOR_MOVE,
             {
-                "ptcId":  await ws_session.get(sid, "participant_id"),
+                "ptcId": await ws_session.get(sid, "participant_id"),
                 "nickname": await ws_session.get(sid, "nickname"),
                 "fileInfo": {
                     "ownerId": owner_id,
@@ -104,7 +104,7 @@ async def update_last_cursor(sid: str, data: dict):
             room=target_room,
             uuid=data.get("uuid"),
         )
-        
+
         # If the event is 'open', do not need to update it, but need to broadcast the cursor.
         if event != "open":
             # Check READ permission. If no permission, ForbiddenProjectException exception occurs.
@@ -115,6 +115,6 @@ async def update_last_cursor(sid: str, data: dict):
             cursor_ctrl: CursorController = await CursorController.from_session(sid=sid, db=db)
             cursor_ctrl.update_last_cursor(owner_id, file, cursor)
     except MissingFieldException as e:
-        await sio.emit(WSEvent.CURSOR_MOVE, ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.CURSOR_MOVE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except BaseException as e:
-        await sio.emit(WSEvent.CURSOR_MOVE, ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.CURSOR_MOVE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
