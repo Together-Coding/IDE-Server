@@ -56,7 +56,7 @@ async def broadcast_file_mod(sid: str, data: dict):
         )
 
     except BaseException as e:
-        await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.FILE_SAVE)
@@ -88,4 +88,4 @@ async def file_save(sid: str, data: dict):
         )
         await sio.emit(WSEvent.FILE_MOD, {"success": True}, room=target_room, uuid=data.get("uuid"))
     except BaseException as e:
-        await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))

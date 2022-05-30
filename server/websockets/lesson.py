@@ -98,4 +98,7 @@ async def get_all_participant(sid: str, data: dict | None = None):
 
     ptc_data = lesson_ctrl.get_all_participant()
     resp = [serializer.participant(ptc, proj) for ptc, proj in ptc_data]
+
+    if data.get("uuid"):
+        resp = {"participants": resp}
     await sio.emit(WSEvent.ALL_PARTICIPANT, data=resp, to=sid, uuid=data.get("uuid"))

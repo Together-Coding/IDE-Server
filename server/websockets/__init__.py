@@ -10,7 +10,6 @@ from server.helpers.redis_ import r
 
 __all__ = [
     "main",
-    "user",
     "project",
     "lesson",
     "cursor",
@@ -80,7 +79,7 @@ class AsyncServerForMonitor(socketio.AsyncServer):
     async def _handle_event(self, eio_sid, namespace, id, data):
         try:
             # if event != TIMESTAMP_ACK, then inject data
-            if data[0] not in WS_MONITOR_EVENTS and "uuid" in data[1]:
+            if data[0] not in WS_MONITOR_EVENTS and type(data[1]) == dict and "uuid" in data[1]:
                 r.set(
                     f'monitor:{data[1]["uuid"]}',
                     json.dumps(
@@ -93,11 +92,10 @@ class AsyncServerForMonitor(socketio.AsyncServer):
                     ),
                     ex=60,
                 )
-                # await self.emit(WSEvent.WS_MONITOR_EVENT, data=data[1], to=Room.WS_MONITOR)
+                _data = data[1].copy()
+                _data["server"] = "Server-" + get_hostname()
+                await self.emit(WSEvent.WS_MONITOR_EVENT, data=_data, to=Room.WS_MONITOR, uuid=data[1]['uuid'])
         except:
             pass
 
         return await super()._handle_event(eio_sid, namespace, id, data)
-
-    # async def disconnect(self, sid, namespace=None, ignore_queue=False):
-    #     return await super().disconnect(sid, namespace, ignore_queue)

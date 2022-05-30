@@ -54,7 +54,7 @@ async def get_feedback_list(sid: str, data: dict = None):
 
         await sio.emit(WSEvent.FEEDBACK_LIST, data=resp, to=sid, uuid=data.get("uuid"))
     except BaseException as e:
-        await sio.emit(WSEvent.FEEDBACK_LIST, data=ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FEEDBACK_LIST, data=ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except:
         sentry.exc()
 
@@ -117,7 +117,7 @@ async def add_feedback(sid: str, data: dict):
                 )
 
     except BaseException as e:
-        await sio.emit(WSEvent.FEEDBACK_ADD, data=ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FEEDBACK_ADD, data=ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except:
         sentry.exc()
 
@@ -166,7 +166,7 @@ async def modify_feedback(sid: str, data: dict):
                 )
 
     except BaseException as e:
-        await sio.emit(WSEvent.FEEDBACK_MOD, data=ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FEEDBACK_MOD, data=ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except:
         sentry.exc()
 
@@ -203,7 +203,7 @@ async def create_comment(sid: str, data: dict):
                     uuid=data.get("uuid"),
                 )
     except BaseException as e:
-        await sio.emit(WSEvent.FEEDBACK_COMMENT, data=ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FEEDBACK_COMMENT, data=ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except:
         sentry.exc()
 
@@ -243,6 +243,6 @@ async def modify_comment(sid: str, data: dict):
                     uuid=data.get("uuid"),
                 )
     except BaseException as e:
-        await sio.emit(WSEvent.FEEDBACK_COMMENT_MOD, data=ws_error_response(e.error), to=sid)
+        await sio.emit(WSEvent.FEEDBACK_COMMENT_MOD, data=ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
     except:
         sentry.exc()
