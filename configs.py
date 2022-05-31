@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     S3_BUCKET: str = ""
     PROJECT_SIZE_LIMIT: int = 536_870_912  # 512MB in bytes
 
+    TEST_CLUSTER: str = ""
+    TEST_TASKDEF: str = ""
+    TEST_SUBNETS: list = []
+    TEST_SECURITY_GROUPS: list = []
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

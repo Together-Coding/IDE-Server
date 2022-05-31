@@ -21,3 +21,7 @@ const stringToColor = (v) => {
 const invertColor = (color) => {
     return '#' + (Number(`0x1${color.slice(1)}`) ^ 0xFFFFFF).toString(16).slice(1).toUpperCase()
 }
+
+const intComma = (v) => {
+    return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
