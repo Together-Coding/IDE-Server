@@ -9,6 +9,7 @@ from configs import settings
 from server import models, routers, websockets
 from server.helpers.sentry import init_sentry
 from server.websockets import create_websocket
+from server.utils import jinja
 
 if settings.DEBUG:
     cors_allow_origins = "*"
@@ -20,8 +21,9 @@ app = FastAPI()
 sio, sio_app = create_websocket(app, cors_allow_origins)
 
 init_sentry(app)
-app.mount("/static", StaticFiles(directory="server/static"), name='static')
+app.mount("/static", StaticFiles(directory="server/static"), name="static")
 templates = Jinja2Templates(directory="server/templates")
+jinja.register(templates)
 
 app.add_middleware(
     CORSMiddleware,

@@ -45,6 +45,7 @@ body {
 .control-item-container {
     margin: 10px 0;
 }
+
 .control-item {
     display: inline-block;
     margin: 2px 4px;
@@ -59,7 +60,7 @@ body {
     vertical-align: middle;
 }
 
-.control-item > * {
+.control-item>* {
     margin-right: 6px;
 }
 
@@ -75,4 +76,17 @@ body {
     border-radius: 6px;
     font-size: 10px;
     text-align: center;
+}
+
+/* Test Config */
+.test-config-container {
+    margin: 0 20px !important;
+}
+
+.test-config-container form {
+    margin: 20px 0;
+}
+
+.tester {
+    margin: 6px 0;
 }

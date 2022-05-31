@@ -1,0 +1,124 @@
+<div class="test-config-container ui grid">
+    <div class="two column row">
+        <div class="column">
+            <form class="ui mini form" id="create-test-form" method="post" action="{{ url_for('create_test') }}">
+                <div class="ui dividing header">테스트 생성</div>
+                <div class="two fields">
+                    <div class="field">
+                        <label for="course_id">수업 ID</label>
+                        <input type="number" id="course_id" name="course_id" value="{{ course.id }}" readonly>
+                    </div>
+                    <div class="field">
+                        <label for="lesson_id">강의 ID</label>
+                        <input type="number" id="lesson_id" name="lesson_id" value="{{ lesson.id }}" readonly>
+                    </div>
+                </div>
+
+                <div class="two fields">
+                    <div class="field">
+                        <label for="test_user_num">머신 개수</label>
+                        <input type="number" name="test_user_num" , placeholder="50" min="0" max="50">
+                    </div>
+                    <div class="field">
+                        <label for="target_ptc_id">대상 PTC ID</label>
+                        <select name="target_ptc_id">
+                            <option value="0">자기 자신</option>
+                            {% for ptc in course.participants %}
+                            <option value="{{ ptc.id }}">{{ ptc.id }} ({{ ptc.nickname }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="ui mini blue button">생성</button>
+                <div class="ui checkbox">
+                    <input type="checkbox" name="with_local_tester">
+                    <label> with 로컬 테스터</label>
+                </div>
+            </form>
+
+            <div class="active-test">
+                {% if active_test %}
+                <form class="ui mini form" id="active-info" method="post" action="#"
+                    data-start-url="{{ url_for('start_test', test_id=active_test.id) }}"
+                    data-modify-url="{{ url_for('modify_test', test_id=active_test.id) }}"
+                    data-delete-url="{{ url_for('delete_test', test_id=active_test.id) }}">
+                    <input type="hidden" id="test_id" name="test_id" value="{{ active_test.id }}">
+                    <div class="ui dividing header">현재 테스트</div>
+                    <div class="three fields">
+                        <div class="field">
+                            <label for="test_user_num">머신 개수</label>
+                            <input type="text" name="test_user_num" value="{{ active_test.test_user_num }}" readonly>
+                        </div>
+                        <div class="field">
+                            <label for="target_ptc_id">대상 PTC ID</label>
+                            <select name="target_ptc_id" {% if active_test.started %}readonly{% endif %}>
+                                <option value="0" {% if not active_test.target_ptc_id %}selected{% endif %}>
+                                    자기 자신
+                                </option>
+                                {% for ptc in course.participants %}
+                                <option {% if active_test.target_ptc_id==ptc.id %}selected{% endif %}
+                                    value="{{ ptc.id }}">
+                                    {{ ptc.id }} ({{ ptc.nickname }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="duration">시간{% if active_test.start_at%} 추가{% endif %} (분)</label>
+                            <input type="number" name="duration" min="1" max="30" placeholder="10" required>
+                        </div>
+                    </div>
+                    {% if active_test.started %}
+                    <div class="three fields">
+                        <div class="field">
+                            <label>Start at</label>
+                            <input type="text" value="{{ active_test.start_at | strf('%Y-%m-%d %H:%M:%S')}}" readonly>
+                        </div>
+                        <div class="field">
+                            <label>End at</label>
+                            <input type="text" value="{{ active_test.end_at | strf('%Y-%m-%d %H:%M:%S')}}" readonly>
+                        </div>
+                        <div class="field">
+                            <label for="">Remaining (sec)</label>
+                            <input type="text" id="test-remaining"
+                                data-end-at="{{ active_test.end_at | strf('%Y-%m-%dT%H:%M:%SZ') }}" readonly
+                                value="{{ active_test.remaining_time | intcomma }}">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <button class="ui mini button green" {% if active_test.started %}disabled{% endif %}
+                        id="start-test">
+                        시작</button>
+                    <button class="ui mini button blue" {% if active_test.ended %}disabled{% endif %} id="modify-test">
+                        수정</button>
+                    <button class="ui mini button red" id="delete-test">
+                        삭제</button>
+                </form>
+                {% else %}
+                <p>생성된 테스트가 없습니다.</p>
+                {% endif %}
+
+                <div class="tester-container">
+                    {% for cont in active_test.testers %}
+                    <p class="tester" title="{{ cont.task_arn }}">
+                        {% if cont.active %}🟢{% else %}🔴{% endif %}
+                        {{ cont.user.name }}({{ cont.user_id}})
+                    </p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="inactive-test">
+                <p>1. [로그] 2022-03-01 00:01:00 ~ 2022-03-01 00:10:00</p>
+                <p>2. [로그] 2022-03-02 01:21:50 ~ 2022-03-02 01:40:00</p>
+                <p>3. [로그] 2022-03-03 02:31:00 ~ 2022-03-03 02:50:00</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="{{ url_for('static', path='/test_management.js') }}"></script>
