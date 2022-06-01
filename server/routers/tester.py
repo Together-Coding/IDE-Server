@@ -128,10 +128,11 @@ async def end_tester(body: EndTesterBody, db: Session = Depends(get_db_dep)):
     db.commit()
 
     if body.log:
+        task_id = body.task_arn.rsplit('/')[-1]
         stream = io.StringIO(json.dumps(body.log))
         s3.put_object(
             stream,
-            key=f"test/{tester.test_config.id}/{body.task_arn}.json",
+            key=f"test/{tester.test_config.id}/{task_id}.json",
             bucket="together-coding-dev",
         )
 
@@ -157,10 +158,11 @@ async def end_summary(body: EndSummaryBody, db: Session = Depends(get_db_dep)):
         raise HTTPException(status_code=404, detail="테스터 정보를 찾을 수 없습니다.")
 
     # Upload to S3
+    task_id = body.task_arn.rsplit('/')[-1]
     stream = io.StringIO(json.dumps(body.summary))
     s3.put_object(
         stream,
-        key=f"test/{tester.test_config.id}/summary-{body.task_arn}.json",
+        key=f"test/{tester.test_config.id}/summary-{task_id}.json",
         bucket="together-coding-dev",
     )
 
