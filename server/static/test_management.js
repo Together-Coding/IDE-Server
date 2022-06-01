@@ -6,10 +6,12 @@
      */
     createTestForm.addEventListener('submit', (e) => {
         e.preventDefault();
+
         const form = e.target;
         const payload = {
             course_id: form.course_id.value,
             lesson_id: form.lesson_id.value,
+            server_host: form.server_host.value,
             test_user_num: form.test_user_num.value,
             target_ptc_id: form.target_ptc_id.value || null,
             with_local_tester: form.with_local_tester.checked,
@@ -52,6 +54,7 @@
 
         const url = activeInfoForm.dataset.startUrl;
         const payload = {
+            server_host: activeInfoForm.server_host.value,
             target_ptc_id: activeInfoForm.target_ptc_id.value || null,
             duration: activeInfoForm.duration.value || null,
         }

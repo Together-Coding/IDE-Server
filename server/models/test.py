@@ -18,6 +18,8 @@ class TestConfig(Base):
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=True)
 
+    server_host = Column(TEXT, nullable=False)
+
     # Target participant ID that the test users are interact with. If null, interact with random user.
     target_ptc_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 

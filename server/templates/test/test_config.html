@@ -29,11 +29,21 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="ui mini blue button">생성</button>
-                <div class="ui checkbox">
-                    <input type="checkbox" name="with_local_tester">
-                    <label> with 로컬 테스터</label>
+                <div class="two fields">
+                    <div class="field">
+                        <label for="server_host">Server Host</label>
+                        <input type="text" placeholder="127.0.0.1:8001" name="server_host">
+                    </div>
+                    <div class="field">
+                        <label for="with_local_tester">with 로컬 테스터</label>
+                        <div class="ui slider checkbox field-checkbox">
+                            <input type="checkbox" tabindex="0" name="with_local_tester">
+                        </div>
+                    </div>
                 </div>
+
+                <button type="submit" class="ui mini blue button">생성</button>
+
             </form>
 
             <div class="active-test">
@@ -44,6 +54,13 @@
                     data-delete-url="{{ url_for('delete_test', test_id=active_test.id) }}">
                     <input type="hidden" id="test_id" name="test_id" value="{{ active_test.id }}">
                     <div class="ui dividing header">현재 테스트</div>
+                    <div class="fields">
+                        <div class="eleven wide field">
+                            <label>Server Host</label>
+                            <input type="text" name="server_host" value="{{ active_test.server_host }}"
+                                placeholder="127.0.0.1:8000" {% if active_test.started %}readonly{% endif %}>
+                        </div>
+                    </div>
                     <div class="three fields">
                         <div class="field">
                             <label for="test_user_num">머신 개수</label>
