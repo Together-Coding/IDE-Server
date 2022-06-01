@@ -34,7 +34,12 @@ def put_object(body: IOBase, key: str, bucket: str | None = None, acl="private")
         bucket = settings.S3_BUCKET
 
     body.seek(0)
-    return _s3.put_object(ACL=acl, Body=body.read(), Key=_refine_key(key))
+    return _s3.put_object(
+        Bucket=bucket,
+        Key=_refine_key(key),
+        ACL=acl,
+        Body=body.read(),
+    )
 
 
 def is_exists(key: str, bucket: str | None = None):

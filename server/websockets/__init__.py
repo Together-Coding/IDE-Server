@@ -95,7 +95,7 @@ class AsyncServerForMonitor(socketio.AsyncServer):
                 )
                 _data = data[1].copy()
                 _data["server"] = "Server-" + get_hostname()
-                await self.emit(WSEvent.WS_MONITOR_EVENT, data=_data, to=Room.WS_MONITOR, uuid=data[1]['uuid'])
+                await self.emit(WSEvent.WS_MONITOR_EVENT, data=_data, to=Room.WS_MONITOR, uuid=data[1]["uuid"])
         except:
             pass
 
