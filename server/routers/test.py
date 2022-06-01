@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, contains_eager, joinedload
 
@@ -14,6 +14,7 @@ from server.models.course import Course, Lesson, Participant, ProjectViewer, PRO
 from server.models.test import TestConfig, TestContainer
 from server.models.user import User
 from server.utils.etc import get_hostname
+from server.utils.response import api_response
 
 
 class CreateTestBody(BaseModel):
@@ -131,6 +132,9 @@ async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
     if body.test_user_num == 0 and not body.with_local_tester:
         raise HTTPException(status_code=400, detail="머신 개수를 입력하거나 로컬 테스터를 선택해주세요.")
 
+    if not body.server_host:
+        raise HTTPException(status_code=400, detail="서버 호스트를 설정해주세요.")
+
     tc = TestConfig(
         course_id=body.course_id,
         lesson_id=body.lesson_id,
@@ -166,7 +170,7 @@ async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
 
     db.commit()
 
-    return JSONResponse(status_code=200, content="테스트가 생성되었습니다.")
+    return api_response(status_code=200)
 
 
 @router.post("/{test_id}")
@@ -182,7 +186,7 @@ async def start_test(test_id: int, body: StartTestBody, db: Session = Depends(ge
     )
 
     if not test:
-        raise HTTPException(status_code=404, detail="해당 테스트를 수정할 수 없습니다. 테스트의 상태를 확인해주세요.")
+        raise HTTPException(status_code=404, detail="해당 테스트를 시작할 수 없습니다. 테스트의 상태를 확인해주세요.")
 
     test.start_at = datetime.datetime.utcnow()
     test.end_at = test.start_at + datetime.timedelta(minutes=body.duration)
@@ -208,7 +212,7 @@ async def start_test(test_id: int, body: StartTestBody, db: Session = Depends(ge
 
     db.commit()
 
-    return JSONResponse(status_code=200)
+    return api_response(status_code=200)
 
 
 @router.put("/{test_id}")
@@ -228,6 +232,9 @@ async def modify_test(test_id: int, body: ModifyTestBody, db: Session = Depends(
 
     if test.ended:
         raise HTTPException(status_code=400, detail="테스트가 종료되어, 수정할 수 없습니다.")
+
+    if not body.server_host:
+        raise HTTPException(status_code=400, detail="서버 호스트를 설정해주세요.")
 
     target_ptc_id = body.target_ptc_id or None
     duration = body.duration
@@ -249,7 +256,7 @@ async def modify_test(test_id: int, body: ModifyTestBody, db: Session = Depends(
     db.add(test)
     db.commit()
 
-    return JSONResponse(status_code=200)
+    return api_response(status_code=200)
 
 
 @router.delete("/{test_id}")

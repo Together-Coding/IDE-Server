@@ -127,7 +127,6 @@ async def end_tester(body: EndTesterBody, db: Session = Depends(get_db_dep)):
     db.add(tester)
     db.commit()
 
-    print(body.log)
     if body.log:
         stream = io.StringIO(json.dumps(body.log))
         s3.put_object(
