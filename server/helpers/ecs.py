@@ -31,12 +31,12 @@ def _run_task(count: int, started_by: str = ""):
         cluster=settings.TEST_CLUSTER,
         count=count,
         group="toco",
-        launchType="FARGATE",
+        launchType=settings.TEST_TASK_TYPE,
         networkConfiguration={
             "awsvpcConfiguration": {
                 "subnets": settings.TEST_SUBNETS,
                 "securityGroups": settings.TEST_SECURITY_GROUPS,
-                "assignPublicIp": "ENABLED",  # or 'DISABLED'
+                "assignPublicIp": "DISABLED" if settings.TEST_TASK_TYPE == "EC2" else "ENABLED",
             }
         },
         startedBy=started_by,
