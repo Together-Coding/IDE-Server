@@ -150,9 +150,9 @@ const removeNode = (node) => {
     }
 
     const remove = () => {
-        if (node && node.series && node.remove)
-            node.remove()
-        delete nodeTable[node.id]
+        nodeNames.delete(node.id);
+        delete nodeTable[node.id];
+        if (node && node.series && node.remove) node.remove()
     };
 
     const clear = () => {
