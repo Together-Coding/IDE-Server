@@ -17,7 +17,11 @@ else:
     cors_allow_origins = ["https://together-coding.com"]
 
 
-app = FastAPI()
+_kwargs = {}
+if not settings.DEBUG:
+    _kwargs.update({"docs_url": None, "redoc_url": None})
+
+app = FastAPI(**_kwargs)
 sio, sio_app = create_websocket(app, cors_allow_origins)
 
 init_sentry(app)

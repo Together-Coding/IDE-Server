@@ -58,16 +58,15 @@ class TestContainer(Base):
     task_arn = Column(TEXT, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     ptc_id = Column(Integer, ForeignKey("participants.id"), nullable=True)
-    
 
     active = Column(Boolean, nullable=False, default=False)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
-    # ping_at = Column(DATETIME, nullable=True)  # 🟡
+    ping_at = Column(DATETIME, nullable=True)
 
     test_config: TestConfig = relationship("TestConfig", uselist=False)
     user = relationship("User", uselist=False)
     participant = relationship("Participant", uselist=False)
 
-    # @property
-    # def has_recent_ping(self):
-    #     return self.ping_at and (self.ping_at + datetime.timedelta(seconds=5) > datetime.datetime.utcnow())
+    @property
+    def has_recent_ping(self):
+        return bool(self.ping_at) and (self.ping_at + datetime.timedelta(seconds=5) > datetime.datetime.utcnow())

@@ -140,20 +140,24 @@ async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
 
     for idx, task_arn in enumerate(task_arns):
         test_ptc: Participant = test_ptcs[idx]
-        db.add(TestContainer(
-            test_id=tc.id,
-            task_arn=task_arn,
-            user_id=test_ptc.user.id,
-            ptc_id=test_ptc.id,
-        ))
-    
+        db.add(
+            TestContainer(
+                test_id=tc.id,
+                task_arn=task_arn,
+                user_id=test_ptc.user.id,
+                ptc_id=test_ptc.id,
+            )
+        )
+
     if body.with_local_tester:
-        db.add(TestContainer(
-            test_id=tc.id,
-            task_arn='127.0.0.1',
-            user_id=test_ptcs[0].user.id,
-            ptc_id=test_ptcs[0].id,
-        ))
+        db.add(
+            TestContainer(
+                test_id=tc.id,
+                task_arn="127.0.0.1",
+                user_id=test_ptcs[0].user.id,
+                ptc_id=test_ptcs[0].id,
+            )
+        )
 
     db.commit()
 
@@ -197,7 +201,7 @@ async def start_test(test_id: int, body: StartTestBody, db: Session = Depends(ge
                 )
             )
 
-    db.commit()#
+    db.commit()
 
     return JSONResponse(status_code=200)
 
@@ -218,18 +222,20 @@ async def modify_test(test_id: int, body: ModifyTestBody, db: Session = Depends(
         raise HTTPException(status_code=404, detail="해당 테스트를 수정할 수 없습니다. 테스트의 상태를 확인해주세요.")
 
     if test.ended:
-        raise HTTPException(status_code=404, detail="테스트가 종료되어, 수정할 수 없습니다.")
+        raise HTTPException(status_code=400, detail="테스트가 종료되어, 수정할 수 없습니다.")
 
     target_ptc_id = body.target_ptc_id or None
     duration = body.duration
 
     if test.started and target_ptc_id != test.target_ptc_id:
-        raise HTTPException(status_code=404, detail="테스트가 시작되어, 대상 PTC ID 를 수정할 수 없습니다.")
+        raise HTTPException(status_code=400, detail="테스트가 시작되어, 대상 PTC ID 를 수정할 수 없습니다.")
+    elif test.started and body.server_host != test.server_host:
+        raise HTTPException(status_code=400, detail="테스트가 시작되어, Server Host 를 수정할 수 없습니다.")
 
     test.target_ptc_id = target_ptc_id
 
     if duration and duration <= 0:
-        raise HTTPException(status_code=404, detail="추가 시간 값이 잘못 되었습니다.")
+        raise HTTPException(status_code=400, detail="추가 시간 값이 잘못 되었습니다.")
 
     if duration and test.end_at:
         test.end_at += datetime.timedelta(minutes=duration)
@@ -256,23 +262,3 @@ async def delete_test(test_id: int, db: Session = Depends(get_db_dep)):
     db.commit()
 
     return JSONResponse(status_code=200)
-
-
-@router.get("/{test_id}")
-async def get_test_config(test_id: int):
-    pass
-
-
-@router.post("/tester/start")
-async def start_tester():
-    pass
-
-
-@router.post("/tester/end")
-async def end_tester():
-    pass
-
-
-@router.post("/{test_id}/log")
-async def download_log(test_id: int):
-    pass
