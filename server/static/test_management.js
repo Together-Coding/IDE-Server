@@ -1,6 +1,6 @@
 (function () {
     const createTestForm = document.getElementById("create-test-form");
-
+    const headers = { 'Content-Type': 'application/json' };
     /**
      * Create new test config
      */
@@ -19,11 +19,21 @@
 
         fetch(form.action, {
             method: form.method.toUpperCase(),
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(payload)
-        }).then(_ => {
-            window.location.reload();
         })
+            .then(res => {
+                if (res.ok) return window.location.reload();
+                return res.json()
+            })
+            .then(res => {
+                if (typeof res.detail === "string") {
+                    return showMessage(res.detail, 'error');
+                }
+                for (detail of res.detail) {
+                    showMessage(detail.msg, 'error');
+                }
+            })
     })
 
     /**
@@ -41,18 +51,25 @@
         const url = activeInfoForm.dataset.startUrl;
         const payload = { duration: activeInfoForm.duration.value || null }
 
-        if (payload.duration == null) {
-            window.alert("시간 값을 입력해주세요.")
-            return;
-        }
+        if (payload.duration == null) return window.alert("시간 값을 입력해주세요.");
 
         fetch(url, {
             method: "POST",
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(payload)
-        }).then(_ => {
-            window.location.reload();
         })
+            .then(res => {
+                if (res.ok) return window.location.reload();
+                return res.json()
+            })
+            .then(res => {
+                if (typeof res.detail === "string") {
+                    return showMessage(res.detail, 'error');
+                }
+                for (detail of res.detail) {
+                    showMessage(detail.msg, 'error');
+                }
+            })
     })
 
     modifyTestBtn && modifyTestBtn.addEventListener('click', (e) => {
@@ -68,11 +85,21 @@
 
         fetch(url, {
             method: "PUT",
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(payload)
-        }).then(_ => {
-            window.location.reload();
         })
+            .then(res => {
+                if (res.ok) return window.location.reload();
+                return res.json()
+            })
+            .then(res => {
+                if (typeof res.detail === "string") {
+                    return showMessage(res.detail, 'error');
+                }
+                for (detail of res.detail) {
+                    showMessage(detail.msg, 'error');
+                }
+            })
     })
 
     deleteTestBtn && deleteTestBtn.addEventListener('click', (e) => {
@@ -82,10 +109,20 @@
         const url = activeInfoForm.dataset.deleteUrl;
         fetch(url, {
             method: "DELETE",
-            headers: { 'Content-Type': 'application/json' },
-        }).then(_ => {
-            window.location.reload();
+            headers,
         })
+            .then(res => {
+                if (res.ok) return window.location.reload();
+                return res.json()
+            })
+            .then(res => {
+                if (typeof res.detail === "string") {
+                    return showMessage(res.detail, 'error');
+                }
+                for (detail of res.detail) {
+                    showMessage(detail.msg, 'error');
+                }
+            })
     })
 
     const remainingTime = document.getElementById("test-remaining");

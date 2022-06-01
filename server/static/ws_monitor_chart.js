@@ -135,7 +135,6 @@ const addEdge = (from_, to_) => {
  * @param {*} node 
  */
 const removeNode = (node) => {
-    console.log(node)
     const step = 0.5;
     const decInterval = 200;  // milliseconds
     const need = 2500
