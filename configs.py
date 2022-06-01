@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     PROJECT_SIZE_LIMIT: int = 536_870_912  # 512MB in bytes
 
     TEST_CLUSTER: str = ""
+    TEST_TASK_TYPE: str = ""
     TEST_TASKDEF: str = ""
     TEST_SUBNETS: list = []
     TEST_SECURITY_GROUPS: list = []

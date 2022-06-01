@@ -274,4 +274,4 @@ async def delete_test(test_id: int, db: Session = Depends(get_db_dep)):
     db.add(test)
     db.commit()
 
-    return JSONResponse(status_code=200)
+    return api_response(status_code=200)
