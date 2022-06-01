@@ -16,6 +16,26 @@ from server.models.user import User
 from server.utils.etc import get_hostname
 
 
+class CreateTestBody(BaseModel):
+    course_id: int
+    lesson_id: int
+    server_host: str
+    test_user_num: int
+    target_ptc_id: int | None
+    with_local_tester: bool
+
+
+class StartTestBody(BaseModel):
+    duration: int
+
+
+class ModifyTestBody(BaseModel):
+    server_host: str
+    target_ptc_id: int | None
+    duration: int | None
+
+
+
 def auth_required(api_key: str = Header(default="", alias="X-API-KEY")):
     if api_key != settings.WS_MONITOR_KEY:
         raise HTTPException(status_code=403, detail="X-API-KEY is invalid.")
@@ -80,22 +100,6 @@ async def control_panel(
     )
 
 
-class CreateTestBody(BaseModel):
-    course_id: int
-    lesson_id: int
-    test_user_num: int
-    target_ptc_id: int | None
-    with_local_tester: bool
-
-class StartTestBody(BaseModel):
-    duration: int
-
-
-class ModifyTestBody(BaseModel):
-    target_ptc_id: int | None
-    duration: int | None
-
-
 @router.post("/")
 async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
     """Create new TestConfig"""
@@ -130,6 +134,7 @@ async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
     tc = TestConfig(
         course_id=body.course_id,
         lesson_id=body.lesson_id,
+        server_host=body.server_host,
         target_ptc_id=body.target_ptc_id or None,
         test_user_num=body.test_user_num,
     )
@@ -233,6 +238,7 @@ async def modify_test(test_id: int, body: ModifyTestBody, db: Session = Depends(
         raise HTTPException(status_code=400, detail="테스트가 시작되어, Server Host 를 수정할 수 없습니다.")
 
     test.target_ptc_id = target_ptc_id
+    test.server_host = body.server_host
 
     if duration and duration <= 0:
         raise HTTPException(status_code=400, detail="추가 시간 값이 잘못 되었습니다.")
