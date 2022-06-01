@@ -22,7 +22,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(_ => {
-            // window.location.reload();
+            window.location.reload();
         })
     })
 
@@ -30,8 +30,13 @@
      * Manipulate active test config
      */
     const activeInfoForm = document.getElementById("active-info");
-    document.getElementById("start-test").addEventListener('click', (e) => {
+    const startTestBtn = document.getElementById("start-test")
+    const modifyTestBtn = document.getElementById("modify-test")
+    const deleteTestBtn = document.getElementById("delete-test")
+
+    startTestBtn && startTestBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        if (!confirm("테스트를 시작하실 건가요?")) return;
 
         const url = activeInfoForm.dataset.startUrl;
         const payload = { duration: activeInfoForm.duration.value || null }
@@ -46,11 +51,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(_ => {
-            // window.location.reload();
+            window.location.reload();
         })
     })
-    document.getElementById("modify-test").addEventListener('click', (e) => {
+
+    modifyTestBtn && modifyTestBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        if (!confirm("테스트를 수정하실 건가요?")) return;
 
         const url = activeInfoForm.dataset.startUrl;
         const payload = {
@@ -64,11 +71,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(_ => {
-            // window.location.reload();
+            window.location.reload();
         })
     })
-    document.getElementById("delete-test").addEventListener('click', (e) => {
+
+    deleteTestBtn && deleteTestBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        if (!confirm("테스트를 삭제하실 건가요?")) return;
 
         const url = activeInfoForm.dataset.deleteUrl;
         fetch(url, {
@@ -80,10 +89,14 @@
     })
 
     const remainingTime = document.getElementById("test-remaining");
-    const endDate = new Date(remainingTime.dataset.endAt);
-    
-    setInterval(() => {
-        remainingTime.value = intComma(parseInt((endDate.getTime() - new Date().getTime()) / 1000))
-    }, 1000)
+    let endDate;
+
+    if (remainingTime) {
+        endDate = new Date(remainingTime.dataset.endAt);
+
+        setInterval(() => {
+            remainingTime.value = intComma(parseInt((endDate.getTime() - new Date().getTime()) / 1000))
+        }, 1000)
+    }
 
 }())
