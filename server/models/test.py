@@ -38,18 +38,19 @@ class TestConfig(Base):
 
     @property
     def started(self):
-        return self.start_at and datetime.datetime.utcnow() > self.start_at
+        return bool(self.start_at) and datetime.datetime.utcnow() > self.start_at
 
     @property
     def ended(self):
-        return self.end_at and datetime.datetime.utcnow() > self.end_at
+        return bool(self.end_at) and datetime.datetime.utcnow() > self.end_at
 
     @property
     def remaining_time(self) -> int:
-        if not (self.start_at and self.end_at):
+        if not (self.start_at and self.end_at) or self.ended:
             return 0
 
         return int((self.end_at - datetime.datetime.utcnow()).total_seconds())
+
 
 class TestContainer(Base):
     __tablename__ = "test_container"
