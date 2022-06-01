@@ -51,7 +51,6 @@
     integrity="sha512-6ODfrEE25LDpXQp3qGrCWRyroRiMPNCBCGE17THBylrP5k6QyQv5UpkYDYLX8o9XP7b+DpTfJTxv17461iHVHA=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<script src="{{ url_for('static', path='/utils.js') }}"></script>
 <script src="{{ url_for('static', path='/ws_monitor_chart.js') }}"></script>
 
 <script>
@@ -90,7 +89,6 @@
         let shortEventName = event.length > 10 ? event.toUpperCase().slice(0, 10) + "..." : event.toUpperCase();
         let bgColor = stringToColor(event + (isClientEmit ? 'c' : 's'));
         let _size = parseInt(Math.log2(size ** 2 + size))
-        console.log(event, size, _size)
 
         // Create element
         let d = document.createElement('div');
@@ -234,7 +232,7 @@
         })
 
         sio.on('WS_MONITOR', data => {
-            console.log(data)
+            console.info(data)
         })
 
         const disconnectHandler = (data) => {
