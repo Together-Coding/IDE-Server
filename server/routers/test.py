@@ -36,7 +36,6 @@ class ModifyTestBody(BaseModel):
     duration: int | None
 
 
-
 def auth_required(api_key: str = Header(default="", alias="X-API-KEY")):
     if api_key != settings.WS_MONITOR_KEY:
         raise HTTPException(status_code=403, detail="X-API-KEY is invalid.")
