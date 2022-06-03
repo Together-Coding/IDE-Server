@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from configs import settings
-from server.helpers import s3
+from server.helpers import s3, sentry
 from server.helpers.db import get_db_dep
 from server.models.test import TestConfig, TestContainer
 
@@ -128,7 +128,7 @@ async def end_tester(body: EndTesterBody, db: Session = Depends(get_db_dep)):
     db.commit()
 
     if body.log:
-        task_id = body.task_arn.rsplit('/')[-1]
+        task_id = body.task_arn.rsplit("/")[-1]
         stream = io.StringIO(json.dumps(body.log))
         s3.put_object(
             stream,
@@ -158,12 +158,15 @@ async def end_summary(body: EndSummaryBody, db: Session = Depends(get_db_dep)):
         raise HTTPException(status_code=404, detail="테스터 정보를 찾을 수 없습니다.")
 
     # Upload to S3
-    task_id = body.task_arn.rsplit('/')[-1]
-    stream = io.StringIO(json.dumps(body.summary))
-    s3.put_object(
-        stream,
-        key=f"test/{tester.test_config.id}/summary-{task_id}.json",
-        bucket="together-coding-dev",
-    )
+    try:
+        task_id = body.task_arn.rsplit("/")[-1]
+        stream = io.StringIO(json.dumps(body.summary))
+        s3.put_object(
+            stream,
+            key=f"test/{tester.test_config.id}/summary-{task_id}.json",
+            bucket="together-coding-dev",
+        )
+    except:
+        sentry.exc()
 
     return JSONResponse()
