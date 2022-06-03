@@ -10,15 +10,24 @@
 
 {{ lesson.id }} {{ lesson.name }}
 <hr>
+
 <div class="control-item-container">
-    <div>
-        <div class="control-item">
-            <span>Avg time diff: </span>
-            <span><strong id="avg-time-diff">0</strong> ms</span>
+    <div class="half-container">
+        <div>
+            <div class="control-item">
+                <span>Avg time diff: </span>
+                <span><strong id="avg-time-diff">0</strong> ms</span>
+            </div>
+            <div class="control-item">
+                <label for="adjust-time-diff">Adjust</label>
+                <input type="checkbox" value="" id="adjust-time-diff">
+            </div>
         </div>
-        <div class="control-item">
-            <label for="adjust-time-diff">Adjust</label>
-            <input type="checkbox" value="" id="adjust-time-diff">
+        <div>
+            <div class="control-item">
+                <label for="min-duration">Adjust duration</label>
+                <input type="number" id="min-duration" step="10" placeholder="duration" value="300">
+            </div>
         </div>
     </div>
     <div>
@@ -97,7 +106,7 @@
         d.id = uuid;
 
         // Set initial position and style
-        let _msgElWidth = msgElWidth + shortEventName.length * 2 + _size * 2
+        let _msgElWidth = msgElWidth + shortEventName.length * 2 // + _size * 2
         let _msgElHeight = msgElHeight + _size
 
         if (_size > 14) {
@@ -226,8 +235,8 @@
         sio.on('connect', () => {
             // Authorize as an admin and enter monitoring room
             sio.emit("WS_MONITOR", {
-                course_id: {{ course.id }},
-                lesson_id: {{ lesson.id }},
+                course_id: '{{ course.id }}',
+                lesson_id: '{{ lesson.id }}',
             });
         })
 

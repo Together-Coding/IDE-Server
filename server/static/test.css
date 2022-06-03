@@ -43,7 +43,18 @@ body {
 
 /* Control panel */
 .control-item-container {
+    display: flex;
+    justify-content: space-between;
     margin: 10px 0;
+}
+
+.half-container {
+    flex: 0 1 1;
+    margin: 0 14px;
+}
+
+.statistics {
+    margin-top: 6px !important;
 }
 
 .control-item {
@@ -76,6 +87,8 @@ body {
     border-radius: 6px;
     font-size: 10px;
     text-align: center;
+    word-break: break-all;
+    overflow: hidden;
 }
 
 /* Test Config */
