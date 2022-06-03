@@ -51,6 +51,7 @@
                 <form class="ui mini form" id="active-info" method="post" action="#"
                     data-start-url="{{ url_for('start_test', test_id=active_test.id) }}"
                     data-modify-url="{{ url_for('modify_test', test_id=active_test.id) }}"
+                    data-stop-url="{{ url_for('stop_test', test_id=active_test.id) }}"
                     data-delete-url="{{ url_for('delete_test', test_id=active_test.id) }}">
                     <input type="hidden" id="test_id" name="test_id" value="{{ active_test.id }}">
                     <div class="ui dividing header">현재 테스트</div>
@@ -107,6 +108,8 @@
                     <button class="ui mini button green" {% if active_test.started %}disabled{% endif %}
                         id="start-test">
                         시작</button>
+                    <button class="ui mini button orange" {% if not active_test.started %}disabled{% endif %}
+                        id="stop-test">중단</button>
                     <button class="ui mini button blue" {% if active_test.ended %}disabled{% endif %} id="modify-test">
                         수정</button>
                     <button class="ui mini button red" id="delete-test">

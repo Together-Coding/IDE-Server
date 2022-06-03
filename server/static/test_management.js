@@ -42,6 +42,7 @@
     const activeInfoForm = document.getElementById("active-info");
     const startTestBtn = document.getElementById("start-test")
     const modifyTestBtn = document.getElementById("modify-test")
+    const stopTestBtn = document.getElementById("stop-test")
     const deleteTestBtn = document.getElementById("delete-test")
 
     startTestBtn && startTestBtn.addEventListener('click', (e) => {
@@ -87,6 +88,29 @@
             method: "PUT",
             headers,
             body: JSON.stringify(payload)
+        })
+            .then(res => {
+                if (res.ok) return window.location.reload();
+                return res.json()
+            })
+            .then(res => {
+                if (typeof res.detail === "string") {
+                    return showMessage(res.detail, 'error');
+                }
+                for (detail of res.detail) {
+                    showMessage(detail.msg, 'error');
+                }
+            })
+    })
+
+    stopTestBtn && stopTestBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!confirm("테스트를 중단할까요?")) return;
+
+        const url = activeInfoForm.dataset.stopUrl;
+        fetch(url, {
+            method: "PUT",
+            headers,
         })
             .then(res => {
                 if (res.ok) return window.location.reload();

@@ -274,3 +274,21 @@ async def delete_test(test_id: int, db: Session = Depends(get_db_dep)):
     db.commit()
 
     return api_response(status_code=200)
+
+
+@router.put("/{test_id}/stop")
+async def stop_test(test_id: int, db: Session = Depends(get_db_dep)):
+    """Forcefully stop test"""
+
+    test: TestConfig = (
+        db.query(TestConfig).filter(TestConfig.id == test_id).filter(TestConfig.deleted.is_(False)).first()
+    )
+
+    if not test:
+        raise HTTPException(status_code=404, detail="테스트를 찾을 수 없습니다.")
+
+    test.end_at = datetime.datetime.utcnow()
+    db.add(test)
+    db.commit()
+
+    return api_response()
