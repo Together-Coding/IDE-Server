@@ -63,11 +63,13 @@ class PingController(LessonUserController):
 
         target_proj_ctrl.my_project.recent_activity_at = utc_dt_now()
         target_proj_ctrl.my_project.active = True
+        self.db.add(target_proj_ctrl.my_project)
 
         # Update the participant's status
         await self.update_ptc_status(active=True)
 
         self.db.commit()
+
 
 
 class ProjectController(LessonUserController):
