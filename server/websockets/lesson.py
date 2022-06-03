@@ -78,6 +78,11 @@ async def init_lesson(sid: str, data: dict):
             "ptcId": ptc.id,
             "nickname": ptc.nickname,
             "is_teacher": ptc.is_teacher,
+            "lesson": {
+                "name": proj_ctrl.my_lesson.name,
+                "description": proj_ctrl.my_lesson.description,
+                "active": proj_ctrl.my_lesson.active,
+            },
         },
         to=sid,
         uuid=data.get("uuid"),
