@@ -61,7 +61,7 @@ ROOM_TYPE = "room-{type}"  # session key to store room names to remember what ro
 
 
 class Room:
-    WS_MONITOR = "admin:monitor"
+    WS_MONITOR = "admin:monitor:{course_id}:{lesson_id}"
 
     PERSONAL_PTC = "{course_id}:{lesson_id}:{ptc_id}:self"  # Used to retrieve session id from participant id
     SUBS_PTC = "{course_id}:{lesson_id}:{ptc_id}"  # Used to subscribe specific participant

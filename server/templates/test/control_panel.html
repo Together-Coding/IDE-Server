@@ -97,7 +97,7 @@
         d.id = uuid;
 
         // Set initial position and style
-        let _msgElWidth = msgElWidth + shortEventName.length * 2 + _size
+        let _msgElWidth = msgElWidth + shortEventName.length * 2 + _size * 2
         let _msgElHeight = msgElHeight + _size
 
         if (_size > 14) {
@@ -225,7 +225,10 @@
 
         sio.on('connect', () => {
             // Authorize as an admin and enter monitoring room
-            sio.emit("WS_MONITOR", {});
+            sio.emit("WS_MONITOR", {
+                course_id: {{ course.id }},
+                lesson_id: {{ lesson.id }},
+            });
         })
 
         sio.on('echo', data => {

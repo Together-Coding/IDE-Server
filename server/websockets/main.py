@@ -62,10 +62,13 @@ async def disconnect(sid: str):
     if settings.WS_MONITOR:
         eid = sio.manager.eio_sid_from_sid(sid, namespace="/")
         if eid:
+            course_id = await ws_session.get(sid, "course_id")
+            lesson_id = await ws_session.get(sid, "lesson_id")
+            monitor_room = Room.WS_MONITOR.format(course_id=course_id, lesson_id=lesson_id)
             await sio.emit(
                 WSEvent.WS_MONITOR_EVENT,
                 data={"monitor_event": "disconnect", "eid": eid},
-                to=Room.WS_MONITOR,
+                to=monitor_room,
             )
 
 
