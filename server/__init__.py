@@ -14,7 +14,7 @@ from server.utils import jinja
 if settings.DEBUG:
     cors_allow_origins = "*"
 else:
-    cors_allow_origins = ["https://together-coding.com"]
+    cors_allow_origins = "*"  # ["https://together-coding.com"]
 
 
 _kwargs = {}
