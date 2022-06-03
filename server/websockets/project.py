@@ -112,17 +112,24 @@ async def unsubscribe_participant(sid: str, data: dict):
 
 
 @sio.on(WSEvent.ACTIVITY_PING)
+@requires(WSEvent.ACTIVITY_PING, ["targetId"])
 @in_lesson
-async def ping(sid: str, data=None):
-    """Listen ping to update UserProject.recent_activity_at"""
+async def ping(sid: str, data=dict):
+    """Listen ping to update UserProject.recent_activity_at
 
-    if not data:
-        data = {}
+    data: {
+        targetId (int): project's owner participant id
+    }
+    """
 
-    ctrl = await PingController.from_session(sid, get_db())
-    await ctrl.update_recent_activity()
+    try:
+        target_id = data.get("targetId")
 
-    await sio.emit(WSEvent.ACTIVITY_PING, "pong", to=sid, uuid=data.get("uuid"))
+        ctrl = await PingController.from_session(sid, get_db())
+        await ctrl.update_recent_activity(target_id)
+        await sio.emit(WSEvent.ACTIVITY_PING, {"ping": "pong"}, to=sid, uuid=data.get("uuid"))
+    except BaseException as e:
+        return await sio.emit(WSEvent.ACTIVITY_PING, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
 
 
 @sio.on(WSEvent.PROJECT_ACCESSIBLE)

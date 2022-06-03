@@ -26,23 +26,47 @@ from server.utils.exceptions import (
     TotalSizeExceededException,
 )
 from server.utils.time_utils import utc_dt_now
+from server.websockets import session as ws_session
 
 
 class PingController(LessonUserController):
-    async def update_recent_activity(self):
-        if not self.my_project:
-            proj_ctrl = ProjectController(
+    async def update_recent_activity(self, target_ptc_id: int | None):
+        if not target_ptc_id:
+            target_ptc_id = self.my_participant.id
+
+        if self.my_participant.id != target_ptc_id:
+            # Accessing other ptc's project
+            proj_file_ctrl = ProjectFileController(
                 course_id=self.course_id,
                 lesson_id=self.lesson_id,
                 user_id=self.user_id,
                 db=self.db,
             )
-            self._project = proj_ctrl.create_if_not_exists()
 
-        self.my_project.recent_activity_at = utc_dt_now()
-        self.my_project.active = True
+            # Check permission and raise exception if no perm or other cases
+            proj_file_ctrl.get_target_info(target_ptc_id, PROJ_PERM.READ)
 
+            target_user_id = self.get_ptc(target_ptc_id).user_id
+        else:
+            # Accessing my project
+            target_user_id = self.user_id
+
+        target_proj_ctrl = ProjectController(
+            course_id=self.course_id,
+            lesson_id=self.lesson_id,
+            user_id=target_user_id,
+            db=self.db,
+        )
+
+        if not target_proj_ctrl.my_project:
+            target_proj_ctrl.create_if_not_exists()
+
+        target_proj_ctrl.my_project.recent_activity_at = utc_dt_now()
+        target_proj_ctrl.my_project.active = True
+
+        # Update the participant's status
         await self.update_ptc_status(active=True)
+
         self.db.commit()
 
 
@@ -433,8 +457,9 @@ class ProjectFileController(LessonUserController):
                 raise ProjectFileException("파일이 존재하지 않습니다.")
 
             # 있다면 압축을 풀고 Redis 에 저장. 해당 UserProject 가 active 상태라면 TTL=0,
-            # inactive 상태라면 TTL=3600 을 설정하여, Redis 메모리를 불필요하게 차지하지 않도록 한다.
-            ttl = None if target_proj.active else 3600
+            # ~inactive 상태라면 TTL=3600 을 설정하여, Redis 메모리를 불필요하게 차지하지 않도록 한다.~
+            #  -> 다른 유저가 수정하는 경우 activity ping 을 보내므로, S3 uploader (bg worker) 에게 맡기면 된다.
+            ttl = None  # if target_proj.active else 3600
             self.s3_ctrl.extract_to_redis(ptc_id=target_ptc.id, ttl=ttl, overwrite=False)
 
             # 사이즈 다시 확인
