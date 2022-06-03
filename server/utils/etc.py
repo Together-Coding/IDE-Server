@@ -4,8 +4,13 @@ import socket
 from urllib.parse import quote, unquote
 
 
+def get_server_ident():
+    return "S-" + get_hostname()
+
+
 def get_hostname():
     return socket.gethostname()
+
 
 def get_hashed(name: str) -> str:
     _md5 = hashlib.md5()

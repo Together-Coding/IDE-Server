@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from configs import settings
 from constants.ws import WS_MONITOR_EVENTS, Room, WSEvent
 from server.helpers.redis_ import r
-from server.utils.etc import get_hostname
+from server.utils.etc import get_server_ident
 
 __all__ = [
     "main",
@@ -77,7 +77,9 @@ class AsyncServerForMonitor(socketio.AsyncServer):
 
         return await super()._emit_internal(sid, event, data, namespace, id)
 
-    async def _handle_event(self, eio_sid, namespace, id, data):
+    async def _handle_event_internal(self, server, sid, eio_sid, data, namespace, id):
+        from server.websockets import session as ws_session
+
         try:
             # if event != TIMESTAMP_ACK, then inject data
             if data[0] not in WS_MONITOR_EVENTS and type(data[1]) == dict and "uuid" in data[1]:
@@ -93,10 +95,17 @@ class AsyncServerForMonitor(socketio.AsyncServer):
                     ),
                     ex=60,
                 )
-                _data = data[1].copy()
-                _data["server"] = "Server-" + get_hostname()
-                await self.emit(WSEvent.WS_MONITOR_EVENT, data=_data, to=Room.WS_MONITOR, uuid=data[1]["uuid"])
+                data[1]["server"] = get_server_ident()
+                course_id = await ws_session.get(sid, "course_id")
+                lesson_id = await ws_session.get(sid, "lesson_id")
+                monitor_room = Room.WS_MONITOR.format(course_id=course_id, lesson_id=lesson_id)
+                await self.emit(
+                    WSEvent.WS_MONITOR_EVENT,
+                    data=data[1],
+                    room=monitor_room,
+                    uuid=data[1]["uuid"],
+                )
         except:
             pass
 
-        return await super()._handle_event(eio_sid, namespace, id, data)
+        return await super()._handle_event_internal(server, sid, eio_sid, data, namespace, id)

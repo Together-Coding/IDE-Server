@@ -69,8 +69,7 @@ const createGraph = (_hostname) => {
                 linkFormat: '',
                 allowOverlap: true
             },
-            data: [
-            ]
+            data: []
         }]
     })
 
@@ -101,7 +100,7 @@ const startProcessEdge = () => {
                 nodeNames.add(node.id);
                 nodeTable[node.id] = node;
 
-                if (node.id.toLowerCase().startsWith('server-')) {
+                if (node.id.toLowerCase().startsWith('s-')) {
                     node.marker = Object.assign(node.marker || {}, { radius: 20 })
                     node.color = '#000000';
                 } else {

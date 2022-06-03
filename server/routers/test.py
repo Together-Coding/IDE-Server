@@ -13,7 +13,7 @@ from server.helpers.db import get_db_dep
 from server.models.course import Course, Lesson, Participant, ProjectViewer, PROJ_PERM, UserProject
 from server.models.test import TestConfig, TestContainer
 from server.models.user import User
-from server.utils.etc import get_hostname
+from server.utils.etc import get_server_ident
 from server.utils.response import api_response
 
 
@@ -91,7 +91,7 @@ async def control_panel(
         "test/control_panel.html",
         {
             "request": request,
-            "hostname": "Server-" + get_hostname(),
+            "hostname": get_server_ident(),
             "x_api_key": settings.WS_MONITOR_KEY,
             "course": lesson.course,
             "lesson": lesson,
@@ -144,7 +144,7 @@ async def create_test(body: CreateTestBody, db: Session = Depends(get_db_dep)):
     db.add(tc)
     db.flush()
 
-    task_arns = ecs.run_task(num=body.test_user_num, started_by=get_hostname())
+    task_arns = ecs.run_task(num=body.test_user_num, started_by=get_server_ident())
 
     for idx, task_arn in enumerate(task_arns):
         test_ptc: Participant = test_ptcs[idx]

@@ -71,7 +71,6 @@ class PingController(LessonUserController):
         self.db.commit()
 
 
-
 class ProjectController(LessonUserController):
     def create_if_not_exists(self) -> UserProject:
         """Create user's ``UserProject`` if not exists"""
