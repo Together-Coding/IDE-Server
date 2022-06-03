@@ -27,15 +27,20 @@ const beforeCreate = () => {
 
 const createGraph = (_hostname) => {
     hostname = _hostname
+    console.log(hostname)
     beforeCreate();
 
     chart = Highcharts.chart('container', {
         chart: {
             type: 'networkgraph',
-            marginTop: 60
+            marginTop: 60,
+            height: 800,
         },
         title: {
             text: chartName,
+        },
+        tooltip: {
+            enabled: false,
         },
         credits: {
             enabled: true,
@@ -48,10 +53,11 @@ const createGraph = (_hostname) => {
                 layoutAlgorithm: {
                     integration: 'verlet',
                     enableSimulation: true,
+                    // enableSimulation: false,
                     // initialPositions: 'circle', // default 'circle'
                     initialPositions: 'random', // default 'circle'
                     // gravitationalConstant: 0.0625, // default 0.0625
-                    // linkLength: 200, // default undefined
+                    linkLength: 240, // default undefined
                     maxSpeed: 5, // default 10
                 }
             }
