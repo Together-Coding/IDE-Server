@@ -4,7 +4,7 @@
     /**
      * Create new test config
      */
-    createTestForm.addEventListener('submit', (e) => {
+     createTestForm && createTestForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const form = e.target;

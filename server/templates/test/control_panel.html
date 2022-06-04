@@ -4,13 +4,14 @@
 <a class="section" href="{{ url_for('index') }}">Home</a>
 <div class="divider"> / </div>
 <a class="active section">Control Panel</a>
+<div class="divider"> / </div>
+<a href="#">{{ course.name }}({{ course.id }})</a>
+<div class="divider"> / </div>
+<a href="#">{{ lesson.name }}({{ lesson.id }})</a>
 {% endblock %}
 
 {% block content %}
-
-{{ lesson.id }} {{ lesson.name }}
 <hr>
-
 <div class="control-item-container">
     <div class="half-container">
         <div>

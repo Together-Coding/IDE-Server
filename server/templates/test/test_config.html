@@ -1,7 +1,8 @@
 <div class="test-config-container ui grid">
     <div class="two column row">
         <div class="column">
-            <form class="ui mini form" id="create-test-form" method="post" action="{{ url_for('create_test') }}">
+            {% if not active_test %}
+            <form class="ui small form" id="create-test-form" method="post" action="{{ url_for('create_test') }}">
                 <div class="ui dividing header">테스트 생성</div>
                 <div class="two fields">
                     <div class="field">
@@ -43,18 +44,18 @@
                 </div>
 
                 <button type="submit" class="ui mini blue button">생성</button>
-
             </form>
+            {% endif %}
 
             <div class="active-test">
                 {% if active_test %}
-                <form class="ui mini form" id="active-info" method="post" action="#"
+                <form class="ui small form" id="active-info" method="post" action="#"
                     data-start-url="{{ url_for('start_test', test_id=active_test.id) }}"
                     data-modify-url="{{ url_for('modify_test', test_id=active_test.id) }}"
                     data-stop-url="{{ url_for('stop_test', test_id=active_test.id) }}"
                     data-delete-url="{{ url_for('delete_test', test_id=active_test.id) }}">
                     <input type="hidden" id="test_id" name="test_id" value="{{ active_test.id }}">
-                    <div class="ui dividing header">현재 테스트</div>
+                    <div class="ui dividing header">현재 테스트 ({{ active_test.id }})</div>
                     <div class="fields">
                         <div class="eleven wide field">
                             <label>Server Host</label>

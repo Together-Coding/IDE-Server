@@ -27,7 +27,6 @@ const beforeCreate = () => {
 
 const createGraph = (_hostname) => {
     hostname = _hostname
-    console.log(hostname)
     beforeCreate();
 
     chart = Highcharts.chart('container', {
