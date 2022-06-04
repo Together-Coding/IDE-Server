@@ -66,7 +66,7 @@
 <script>
     // Control
     const avgTimeDiff = document.getElementById('avg-time-diff');
-    let timeDiffCnt = 0;
+    const eidTimeDiff = {};
     let avgTimeDiffValue = 0;
 
     const adjustTimeDiffCheckbox = document.getElementById("adjust-time-diff");
@@ -172,12 +172,18 @@
         }, duration, d)
     }
 
-    const updateAvgTimeDiff = (newTimeDiff) => {
-        if (newTimeDiff) {
-            timeDiffCnt += 1;
-            avgTimeDiffValue = avgTimeDiffValue + (newTimeDiff - avgTimeDiffValue) / timeDiffCnt;
-            avgTimeDiff.innerText = avgTimeDiffValue.toPrecision(6);
-        }
+    const updateAvgTimeDiff = (eid, newTimeDiff) => {
+        if (eid == null) return;
+        if (eidTimeDiff[eid] != null) return;
+        if (newTimeDiff == null) return;
+
+        // Add new time diff
+        eidTimeDiff[eid] = parseFloat(newTimeDiff);
+
+        // Calculate avg
+        let timeDiffSum = Object.entries(eidTimeDiff).reduce((a, b) => a + b[1], 0);
+        avgTimeDiffValue = timeDiffSum / Object.keys(eidTimeDiff).length;
+        avgTimeDiff.innerText = avgTimeDiffValue.toPrecision(6);
     }
 
     const calcMessageSize = (payload) => {
@@ -193,7 +199,7 @@
         let timeToClient = null;
         let timeToProc = null;
 
-        updateAvgTimeDiff(time_diff)
+        updateAvgTimeDiff(_ts_1_eid, time_diff)
         totalSize = calcMessageSize(data)
         size = calcMessageSize(payload)
 
