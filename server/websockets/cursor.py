@@ -72,7 +72,7 @@ async def update_last_cursor(sid: str, data: dict):
         file_info_keys = ["ownerId", "file", "line", "cursor"]
 
         for key in file_info_keys:
-            if key not in file_info.keys():
+            if key not in file_info.keys() or not file_info[key]:
                 errs.append(f"`fileInfo.{key}` is required.")
         if errs:
             raise MissingFieldException(errs)
