@@ -428,7 +428,10 @@ class ProjectFileController(LessonUserController):
                 return project_files
 
             # 캐시 되어있지 않다면, S3 에서 유저의 프로젝트 다운로드
-            self.s3_ctrl.extract_to_redis(ptc_id=target_ptc.id)
+            try:
+                self.s3_ctrl.extract_to_redis(ptc_id=target_ptc.id)
+            except ProjectFileException:
+                pass  # File can non-exist.
             self.redis_ctrl.set_total_file_size(target_ptc.id)
 
         # 대상 프로젝트를 읽을 수 있다면, 저장소에서 가져온다.
