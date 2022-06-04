@@ -298,7 +298,7 @@ async def file_create(sid: str, data: dict):
         )
         await sio.emit(
             WSEvent.FILE_CREATE,
-            {"type": type_, "name": name},
+            {"ownerId": owner_id, "type": type_, "name": name},
             room=target_room,
             uuid=data.get("uuid"),
         )
