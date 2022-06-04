@@ -19,9 +19,6 @@ async def init_lesson(sid: str, data: dict):
     course_id = data.get("courseId")
     lesson_id = data.get("lessonId")
 
-    # 수업 정보 저장
-    await ws_session.update(sid, {"course_id": course_id, "lesson_id": lesson_id})
-
     # 수업 접근 가능 여부 확인
     proj_ctrl = ProjectController(user_id=user_id, course_id=course_id, lesson_id=lesson_id, db=get_db())
     try:
@@ -33,6 +30,9 @@ async def init_lesson(sid: str, data: dict):
     # 강의 접근 가능 여부 확인
     if proj_ctrl.my_lesson is None:
         return await sio.emit(WSEvent.INIT_LESSON, ws_error_response("존재하지 않는 강의입니다."), to=sid)
+
+    # 수업 정보 저장
+    await ws_session.update(sid, {"course_id": course_id, "lesson_id": lesson_id})
 
     ptc = proj_ctrl.my_participant
 
