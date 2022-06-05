@@ -1,4 +1,5 @@
 import datetime
+import gzip
 import io
 import json
 from typing import Any
@@ -108,8 +109,16 @@ async def start_tester(body: StartTesterBody, db: Session = Depends(get_db_dep))
 
 
 @router.post("/tester/end")
-async def end_tester(body: EndTesterBody, db: Session = Depends(get_db_dep)):
+async def end_tester(request: Request, db: Session = Depends(get_db_dep)):
     """When a tester is over, make it inactive and upload logs to S3"""
+
+    _body = await request.body()
+    if 'gzip' in request.headers.get("content-encoding", ""):
+        desc = gzip.decompress(_body).decode()
+        _body = json.loads(desc)
+    else:
+        _body = json.loads(_body.decode())
+    body = EndTesterBody(**_body)
 
     tester: TestContainer = (
         db.query(TestContainer)

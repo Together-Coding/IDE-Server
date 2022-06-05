@@ -27,7 +27,7 @@ class CreateTestBody(BaseModel):
 
 
 class StartTestBody(BaseModel):
-    duration: int
+    duration: int | float
 
 
 class ModifyTestBody(BaseModel):

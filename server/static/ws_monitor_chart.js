@@ -53,8 +53,8 @@ const createGraph = (_hostname) => {
                     integration: 'verlet',
                     enableSimulation: true,
                     // enableSimulation: false,
-                    // initialPositions: 'circle', // default 'circle'
-                    initialPositions: 'random', // default 'circle'
+                    initialPositions: 'circle', // default 'circle'
+                    // initialPositions: 'random', // default 'circle'
                     // gravitationalConstant: 0.0625, // default 0.0625
                     linkLength: 240, // default undefined
                     maxSpeed: 5, // default 10
