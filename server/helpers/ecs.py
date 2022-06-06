@@ -23,15 +23,19 @@ def _run_task(count: int, started_by: str = ""):
         count (int): The number of instantiations of the specified task to place
                     on your cluster. You can specify up to ``10`` tasks for each call.
     """
-    
+
     if count <= 0:
         return []
 
     resp = _ecs.run_task(
         cluster=settings.TEST_CLUSTER,
+        capacityProviderStrategy=[
+            {"capacityProvider": "FARGATE", "weight": 1, "base": 0},
+            {"capacityProvider": "FARGATE_SPOT", "weight": 1, "base": 0},
+        ],
+        # launchType=settings.TEST_TASK_TYPE,
         count=count,
         group="toco",
-        launchType=settings.TEST_TASK_TYPE,
         networkConfiguration={
             "awsvpcConfiguration": {
                 "subnets": settings.TEST_SUBNETS,
