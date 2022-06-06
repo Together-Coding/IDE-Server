@@ -1,5 +1,5 @@
 from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from constants.ws import WSEvent, Room
 from server import sio
@@ -30,7 +30,7 @@ class LessonBaseController(CourseBaseController):
 
     @lesson_cache.memoize(timeout=60)
     def get_lesson(self, lesson_id: int):
-        return self.db.query(Lesson).filter(Lesson.id == lesson_id).first()
+        return self.db.query(Lesson).options(joinedload(Lesson.file)).filter(Lesson.id == lesson_id).first()
 
     @property
     def my_lesson(self) -> Lesson:
@@ -95,6 +95,7 @@ class LessonUserController(CourseUserController, LessonBaseController):
     def get_proj_by_ptc_id(self, ptc_id: int) -> UserProject:
         return (
             self.db.query(UserProject)
+            .options(joinedload(UserProject.lesson))
             .filter(UserProject.lesson_id == self.lesson_id)
             .filter(UserProject.participant_id == ptc_id)
             .first()

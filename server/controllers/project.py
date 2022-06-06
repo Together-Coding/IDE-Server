@@ -79,18 +79,19 @@ class ProjectController(LessonUserController):
             self.db.add(self._project)
             self.db.flush()
 
-            # 수업 템플릿 코드 적용
-            tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
-            tmpl_ctrl.apply_to_user_project(self.my_participant, self.my_project.lesson)
-
-            self.my_project.template_applied = True
-            self.db.add(self.my_project)
-            self.db.commit()
-
             lesson_cache.delete_memoize(LessonBaseController.get_all_participant, self)
             lesson_cache.delete_memoize(LessonUserController.get_proj_by_ptc_id, self, self.my_participant.id)
             lesson_cache.delete_memoize(ProjectFileController._ptc_info, self, self.my_participant.id)
 
+        # 수업 템플릿 코드 적용
+        if not self.my_project.template_applied:
+            tmpl_ctrl = LessonTemplateController(course_id=self.course_id, lesson_id=self.lesson_id, db=self.db)
+            tmpl_ctrl.apply_to_user_project(self.my_participant, self.my_lesson)
+
+            self.my_project.template_applied = True
+            self.db.add(self.my_project)
+
+        self.db.commit()
         return self.my_project
 
     @lesson_cache.memoize(timeout=300)

@@ -382,7 +382,24 @@ class RedisController:
             for _en in enc_file_names:
                 print(text_decode(_en))
                 
-        return [name for name in enc_file_names]
+        return enc_file_names
+
+        # FIXME: 현재로서는 구현이 안되어 일관성이 부족하여, 주석 처리
+        # if not check_content:
+        #     return enc_file_names
+
+        # cached = bool(enc_file_names)
+        # if cached:
+        #     # Eviction 되는 경우의 처리를 위해, 파일들이 모두 존재하는지 확인
+        #     for enc_filename in enc_file_names:
+        #         # Although empty string can't be stored in Redis, check content length.
+        #         _hashed_name = get_hashed(enc_filename)
+        #         _size = self.r.strlen(file_key_func(_hashed_name))
+        #         if _size <= 0:
+        #             cached = False
+        #             break
+
+        # return enc_file_names if cached else []
 
     def create_file(
         self,
