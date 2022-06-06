@@ -10,7 +10,7 @@ from configs import settings
 from constants.redis import SIZE_LIMIT, RedisKey
 from constants.s3 import S3Key
 from server.helpers import s3, sentry
-from server.helpers.redis_ import r
+from server.helpers.redis_ import r, r_bytes
 from server.utils.etc import get_hashed, text_decode, text_encode
 from server.utils.exceptions import FileAlreadyExistsException, ProjectFileException
 
@@ -96,7 +96,13 @@ class RedisController:
         else:
             file_key = self.redis_key.KEY_TEMPLATE_FILE_CONTENT.format(hash=filename)
 
-        return self.r.get(file_key)
+        try:
+            content: str = self.r.get(file_key)
+        except UnicodeDecodeError:
+            # XXX: :(
+            content: bytes = r_bytes.get(file_key)
+
+        return content
 
     def delete_file(
         self,
@@ -375,22 +381,8 @@ class RedisController:
         if settings.DEBUG:
             for _en in enc_file_names:
                 print(text_decode(_en))
-
-        if not check_content:
-            return enc_file_names
-
-        cached = bool(enc_file_names)
-        if cached:
-            # Eviction 되는 경우의 처리를 위해, 파일들이 모두 존재하는지 확인
-            for enc_filename in enc_file_names:
-                # Although empty string can't be stored in Redis, check content length.
-                _hashed_name = get_hashed(enc_filename)
-                _size = self.r.strlen(file_key_func(_hashed_name))
-                if _size <= 0:
-                    cached = False
-                    break
-
-        return enc_file_names if cached else []
+                
+        return [name for name in enc_file_names]
 
     def create_file(
         self,
