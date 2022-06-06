@@ -12,9 +12,12 @@ def get_hostname():
     return socket.gethostname()
 
 
-def get_hashed(name: str) -> str:
+def get_hashed(name: str | bytes) -> str:
+    if type(name) == str:
+        name = name.encode()
+
     _md5 = hashlib.md5()
-    _md5.update(name.encode())
+    _md5.update(name)
     return _md5.hexdigest()
 
 

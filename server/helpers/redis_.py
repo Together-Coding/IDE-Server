@@ -7,3 +7,10 @@ r = redis.StrictRedis.from_url(
     db=settings.REDIS_DB,
     decode_responses=True,
 )
+
+# :(
+r_bytes = redis.StrictRedis.from_url(
+    settings.REDIS_URL,
+    db=settings.REDIS_DB,
+    decode_responses=False,
+)
