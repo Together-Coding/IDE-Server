@@ -59,3 +59,21 @@ async def get_lesson(lesson_id: int, db: Session = Depends(get_db_dep)):
         return api_response("수업을 찾을 수 없습니다.", status_code=404)
 
     return lesson
+
+
+class ProjectFileResp(BaseModel):
+    files: list
+
+
+@router.post("/{course_id}/{lesson_id}/{ptc_id}")
+async def get_project_file(course_id: int, lesson_id: int, ptc_id: int, db: Session = Depends(get_db_dep)):
+    from server.controllers.file import RedisController
+    from server.helpers.redis_ import r
+    from server.utils.etc import text_decode
+
+    redis_ctrl = RedisController(course_id=course_id, lesson_id=lesson_id, r_=r)
+    enc_filenames = redis_ctrl.get_file_list(ptc_id)
+
+    files = {text_decode(enc_filename): redis_ctrl.get_file(enc_filename, ptc_id, hashed=False) for enc_filename in enc_filenames}
+
+    return files

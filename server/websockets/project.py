@@ -164,20 +164,15 @@ async def project_accessible(sid: str, data=None):
 async def modify_project_permission(sid: str, data=None):
     """나의 프로젝트에 대한 각 유저의 권한 변경
 
-    data: {
+    data: [{
         targetId: (int) target user's participant ID
         permission: (int) new RWX permission
-    }
+    }]s
     """
-
-    if not data:
-        data = {}
 
     proj_ctrl = await ProjectController.from_session(sid, get_db())
     if type(data) != list:
-        return await sio.emit(
-            WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid, uuid=data.get("uuid")
-        )
+        return await sio.emit(WSEvent.PROJECT_PERM, ws_error_response("list type is expected."), to=sid)
 
     my_room_name = Room.SUBS_PTC.format(
         course_id=proj_ctrl.course_id,
@@ -211,9 +206,8 @@ async def modify_project_permission(sid: str, data=None):
             lesson_id=proj_ctrl.lesson_id,
             ptc_id=noti["userId"],
         )
-        await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room, uuid=data.get("uuid"))
-
-    await sio.emit(WSEvent.PROJECT_PERM, {"message": "Permission changed."}, to=sid, uuid=data.get("uuid"))
+        await sio.emit(WSEvent.PROJECT_PERM_CHANGED, noti, room=ptc_room)
+        await sio.emit(WSEvent.PROJECT_PERM, noti, to=sid)
 
 
 @sio.on(WSEvent.DIR_INFO)
