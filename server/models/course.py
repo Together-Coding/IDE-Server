@@ -90,7 +90,7 @@ class UserProject(Base):
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
     recent_activity_at = Column(DATETIME, nullable=False, default=utc_dt_now)
     active = Column(Boolean, nullable=False, default=0)
-    template_applied = Column(Boolean, nullable=False, default=0)
+    template_applied = Column(Boolean, nullable=False, default=False)
     created_at = Column(DATETIME, nullable=False, default=utc_dt_now)
 
     lesson: Lesson = relationship("Lesson", back_populates="projects", uselist=False)
