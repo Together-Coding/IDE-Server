@@ -25,7 +25,7 @@ async def broadcast_file_mod(sid: str, data: dict):
     }
     """
 
-    owner_id = data.get("ownerId")
+    owner_id = int(data.get("ownerId"))
 
     try:
         db = get_db()
@@ -72,7 +72,7 @@ async def file_save(sid: str, data: dict):
     }
     """
 
-    owner_id = data.get("ownerId")
+    owner_id = int(data.get("ownerId"))
     file = data.get("file")
     content = data.get("content")
 
@@ -86,6 +86,6 @@ async def file_save(sid: str, data: dict):
             lesson_id=proj_file_ctrl.lesson_id,
             ptc_id=owner_id,
         )
-        await sio.emit(WSEvent.FILE_MOD, {"success": True}, room=target_room, uuid=data.get("uuid"))
+        await sio.emit(WSEvent.FILE_SAVE, {"success": True}, room=target_room, uuid=data.get("uuid"))
     except BaseException as e:
-        await sio.emit(WSEvent.FILE_MOD, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
+        await sio.emit(WSEvent.FILE_SAVE, ws_error_response(e.error), to=sid, uuid=data.get("uuid"))
