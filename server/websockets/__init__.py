@@ -47,6 +47,9 @@ class CompatibleAsyncServer(socketio.AsyncServer):
         return await super().emit(event, data, to, room, skip_sid, namespace, callback, **kwargs)
 
 
+message_box = {}
+
+
 class AsyncServerForMonitor(socketio.AsyncServer):
     @property
     def _timestamp(self):
@@ -63,9 +66,9 @@ class AsyncServerForMonitor(socketio.AsyncServer):
 
         if uuid and type(data) == dict:
             data["uuid"] = uuid
-            d = r.get(f"monitor:{uuid}")
+            d = message_box.pop(uuid, None)
             if d:
-                data.update(json.loads(d))
+                data.update(d)
 
         return await super().emit(event, data, to, room, skip_sid, namespace, callback, **kwargs)
 
@@ -83,18 +86,12 @@ class AsyncServerForMonitor(socketio.AsyncServer):
         try:
             # if event != TIMESTAMP_ACK, then inject data
             if data[0] not in WS_MONITOR_EVENTS and type(data[1]) == dict and "uuid" in data[1]:
-                r.set(
-                    f'monitor:{data[1]["uuid"]}',
-                    json.dumps(
-                        {
-                            "_ts_1": data[1].get("_ts_1"),
-                            "_ts_1_eid": eio_sid,  # event by
-                            "_ts_2": self._timestamp,
-                            "_c_emit": data[0],
-                        }
-                    ),
-                    ex=60,
-                )
+                message_box[data[1]["uuid"]] = {
+                    "_ts_1": data[1].get("_ts_1"),
+                    "_ts_1_eid": eio_sid,  # event by
+                    "_ts_2": self._timestamp,
+                    "_c_emit": data[0],
+                }
                 data[1]["server"] = get_server_ident()
                 course_id = await ws_session.get(sid, "course_id")
                 lesson_id = await ws_session.get(sid, "lesson_id")
