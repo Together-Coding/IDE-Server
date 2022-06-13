@@ -40,9 +40,9 @@ router = APIRouter(
 class GetLessonResp(BaseModel):
     id: int
     course_id: int
-    name: str
-    description: str
-    lesson_file_id: int
+    name: str | None
+    description: str | None
+    lesson_file_id: int | None
     lang_image_id: int
     active: bool
     created_at: datetime.datetime
