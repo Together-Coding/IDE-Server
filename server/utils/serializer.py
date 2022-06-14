@@ -129,6 +129,7 @@ def feedback(
 def comment(comment: Comment, writer_ptc: Participant | None = None) -> dict[str, Any]:
     return {
         "id": comment.id,
+        "feedbackId": comment.feedback_id,
         "ptcId": comment.participant_id,
         "nickname": writer_ptc.nickname if writer_ptc else comment.participant.nickname,
         "content": comment.content,

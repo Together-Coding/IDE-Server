@@ -51,7 +51,7 @@ class FeedbackController(ProjectController):
         resp: list[dict[str, Any]] = []
 
         for project in rows:
-            resp.append(self._build_dict(owner=project.participant, project=project, refs=project.code_references))
+            resp.append(self._build_dict_v2(owner=project.participant, project=project, refs=project.code_references))
 
         return resp
 
@@ -94,7 +94,62 @@ class FeedbackController(ProjectController):
             .all()
         )
 
-        return self._build_dict(target_ptc, target_proj, rows)
+        return self._build_dict_v2(target_ptc, target_proj, rows)
+
+    def _build_dict_v2(self, owner: Participant, project: UserProject, refs: list[CodeReference]) -> dict[str, Any]:
+        """Build response dictionary (version 2)"""
+
+        result = {
+            "ownerId": owner.id,
+            "ownerNickname": owner.nickname,
+            "projectId": project.id,
+            "feedbacks": [],
+            "comments": [],
+        }
+
+        if not refs:
+            result["refs"] = []
+            return result
+
+        # Query permission
+        fb_ids = []
+        for ref in refs:
+            for fb in ref.feedbacks:
+                fb_ids.append(fb.id)
+
+        perms: list[FeedbackViewerMap] = (
+            self.db.query(FeedbackViewerMap)
+            .filter(FeedbackViewerMap.feedback_id.in_(fb_ids))
+            .filter(FeedbackViewerMap.valid.is_(True))
+            .all()
+        )
+        perm_dict = defaultdict(list)
+        for perm in perms:
+            perm_dict[perm.feedback_id].append(perm.participant_id)
+
+        # Build response
+        _refs = []
+        for ref in refs:
+            _feedbacks = []
+            for fb in ref.feedbacks:
+                _cmt = []
+                for cmt in fb.comments:
+                    _cmt.append(serializer.comment(cmt, cmt.participant))
+
+                _f = serializer.feedback(fb, None, perm_dict[fb.id])
+                _f["file"] = ref.file
+                _f["line"] = ref.line
+                _feedbacks.append(_f)
+                result["comments"].extend(_cmt)
+
+            result["feedbacks"].extend(_feedbacks)
+
+            _r = serializer.code_ref_simple(ref)
+            _r["feedbacks"] = _feedbacks
+            # _refs.append(_r)
+
+        # result["refs"] = _refs
+        return result
 
     def _build_dict(self, owner: Participant, project: UserProject, refs: list[CodeReference]) -> dict[str, Any]:
         """Build response dictionary"""

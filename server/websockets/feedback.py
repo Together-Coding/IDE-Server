@@ -42,6 +42,9 @@ async def get_feedback_list(sid: str, data: dict = None):
     }
     """
 
+    if not data:
+        data = {}
+
     owner_id = data.get("ownerId") if data else None
     file = data.get("file") if data else None
 
