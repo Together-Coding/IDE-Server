@@ -190,15 +190,27 @@ async def create_comment(sid: str, data: dict):
         acl: list[int] = result["acl"]
 
         # According to frontend developer's request, modified the response format.
-        # resp = {
-        #     "ref": serializer.code_ref_from_feedback(feedback),
-        #     "feedback": serializer.feedback(feedback, feedback.participant, acl),
-        #     "comment": serializer.comment(comment, fb_ctrl.my_participant),
-        # }
-        feedbacks = fb_ctrl.get_all_feedbacks()
-        resp = []  # all comments in this lesson
-        for data in feedbacks:
+        all_data = fb_ctrl.get_all_feedbacks()
+        resp: list[dict] = []  # all comments in this lesson
+        _refs = {}
+        _fbs = {}
+        for data in all_data:
             resp.extend(data.get('comments', []))
+            for _fb in data.get('feedbacks', []):
+                _fbs[_fb['id']] = _fb
+            for _ref in data.get('refs', []):
+                _refs[_ref['id']] = _ref
+
+        for cmt in resp:
+            _fb = _fbs.get(cmt['feedbackId'])
+            if not _fb:
+                continue
+            _ref = _refs.get(_fb['refId'])
+            if not _ref:
+                continue
+            
+            cmt['feedbackFileName'] = _ref['file']
+            cmt['feedbackLine'] = _ref['line']
 
         # Sent to participants
         for ptc_id in acl:

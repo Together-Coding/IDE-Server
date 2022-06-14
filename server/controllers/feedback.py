@@ -146,9 +146,9 @@ class FeedbackController(ProjectController):
 
             _r = serializer.code_ref_simple(ref)
             _r["feedbacks"] = _feedbacks
-            # _refs.append(_r)
+            _refs.append(_r)
 
-        # result["refs"] = _refs
+        result["refs"] = _refs
         return result
 
     def _build_dict(self, owner: Participant, project: UserProject, refs: list[CodeReference]) -> dict[str, Any]:
