@@ -33,7 +33,6 @@ def _run_task(count: int, started_by: str = ""):
             {"capacityProvider": "FARGATE", "weight": 1, "base": 0},
             {"capacityProvider": "FARGATE_SPOT", "weight": 1, "base": 0},
         ],
-        # launchType=settings.TEST_TASK_TYPE,
         count=count,
         group="toco",
         networkConfiguration={
