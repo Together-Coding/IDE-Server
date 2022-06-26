@@ -5,9 +5,7 @@ When it receives data related to file modification or a cursor position moved on
 All data related to files are stored in [Redis](https://redis.com/) to handle requests more quickly. For instance, IDE-server can download compressed template code uploaded to each lesson before, decompress it, and then upload the output to Redis in easy-to-handle data types.  
 It also provides websocket handlers used to manipulate file, directory, code-based QnA, and so on.
 
-
 ![architecture](./docs/architecture.png)
-
 
 ## What it does
 
@@ -20,21 +18,18 @@ I had written a [Websocket API specification](https://a2tt.notion.site/IDE-serve
 - If a project has been backup by [Project-Backup-Lambda](https://github.com/Together-Coding/Project-Backup-Lambda), it will download the backup from AWS S3, and does the same thing like processing the template files.
 - It can return file list from Redis and provide functionalities to create/read/update/delete/rename files and directories.
 
-
 ### Features for class
 
-Every features work on a class basis.
+Every feature works on a class basis.
 
 - IDE-server notifies users who is online/offline on their lesson.
 - It lets users subscribe other users.
 - It lets users change who can access their project on what permission.
 - It also lets users know whose project they have access to.
 
-
 ### Real-time sharing
 
 Users continuously share cursor positions and code modification data in real-time. Because saving the changed data is processed by other handlers, IDE-server just broadcasts the sharing messages to appropriate users for them to apply the changes in their IDE immediately.
-
 
 ### Code-based QnA
 
@@ -47,7 +42,6 @@ The first one is used to make it easy to change the linked line number whenever 
 
 For code-based QnA, IDE-server provides functions that are used to list all QnA threads, create/update/delete/modify questions and comments.
 
-
 ### Websocket monitoring
 
 Monitoring was implemented to do a performance analysis. By overriding emission and handler functions of [python-socketio](https://github.com/miguelgrinberg/python-socketio), IDE-server injects the timestamp when it receives and sends a message. You can see the implementation from [here](./server/websockets/__init__.py).
@@ -57,7 +51,6 @@ Monitoring was implemented to do a performance analysis. By overriding emission 
 [highcharts](https://highcharts.com/) is used to visualize the websocket transmission between the servers and the clients.
 
 More details can be found at [Test management](#test-management) and [Performance-Analysis](https://github.com/Together-Coding/Performance-Analysis).
-
 
 ### Test management
 
@@ -77,13 +70,9 @@ If a new test is created, the console page looks like this. At the moment, the m
 When the test is started, you can see what socket.io events are sent to the server and also sent from the server. The testers accumulate all delay time which is an interval from the time client sent the event to the time clients receive the responses caused by the first event.  
 After remaining time becomes zero, the testers stop sending events, and send gzip-compressed logs and [K6](https://k6.io/) test summary to the server. Then, the server uploads them to AWS S3 that are going to be used by [Performance-Analysis](https://github.com/Together-Coding/Performance-Analysis) script.
 
-
-
 ## Requirements
 
 - Python 3.10+
-
-
 
 ## Development
 
@@ -99,13 +88,9 @@ After remaining time becomes zero, the testers stop sending events, and send gzi
 5. Start server  
     `$ uvicorn app:app --port 8001 --reload`
 
-
-
 ## Deployment
 
 As running out of time, I manually deployed with `git pull`. 😢
-
-
 
 ## API Document
 
